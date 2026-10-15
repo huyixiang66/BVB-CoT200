@@ -2,7 +2,9 @@
 
 从已有 **BVB Astra / Luna xhigh `.blend`** 出发，运行固定的 200 道 VSI-Bench 问题（八类各 25 题、126 个场景）。场景来源与 QA 模型独立选择，**每题只请求一次，不做三次采样或投票。**
 
-仓库包含代码、题目/评分标签、冻结的渲染配置与逐题 prompt；不包含 blend、原视频、渲染图片、API key 或历史实验目录。不是从视频重建场景，也不包含 debate 或场景微调。
+仓库包含代码、题目/评分标签、冻结的渲染配置与逐题 prompt；不包含 blend、原视频、渲染图片、API key 或历史实验目录。不是从视频重建场景；主 200 题协议不包含 debate 或场景微调。
+
+主 200 题协议仍不包含场景微调。另提供独立的 [`refine.py`](refine.py) 研究入口，用于一题一题地比较原视频与 BVB 场景、生成受限几何候选并冻结前后 QA；它不会改变主评测结果。
 
 ## 环境
 
@@ -95,3 +97,45 @@ python tests/smoke_blender.py --blender /path/to/blender --scene-model luna
 单元测试覆盖来源隔离、模型选择、动态 prompt、单次续跑和判分，API 为 mock。Blender smoke 使用合成几何测试 C、三类旧视图及 Luna 缺失匹配，仅检查元数据与哈希，不查看图片；不代表真实场景 QA 准确率。
 
 主入口 `run.py`，调度/答题/报告在 `pipeline.py`，两套渲染器为 `render_fixed.py` 和 `render_legacy.py`。第三方许可见 `licenses/`，运行数据被 `.gitignore` 排除。
+
+## 局部场景微调实验
+
+当前首版只支持 `object_abs_distance`。先复制 [`data/refine_q4740.example.json`](data/refine_q4740.example.json)，填写原视频、BVB 视频和 `.blend` 路径，并核对两个目标实例的 mesh 名称/前缀。所有阶段写入独立 `--run` 目录，源 `.blend` 只读，修改后的副本保存在 `final/scene_after.blend`。
+
+```bash
+export REFINE_AUDIT_MODEL='your-vision-model-id'
+export OPENAI_MODEL='your-qa-model-id'
+
+python refine.py doctor    --case my_case.json --run runs/refine-q4740
+python refine.py prepare   --case my_case.json --run runs/refine-q4740
+python refine.py inspect   --case my_case.json --run runs/refine-q4740
+python refine.py retrieve  --case my_case.json --run runs/refine-q4740
+python refine.py candidates --case my_case.json --run runs/refine-q4740
+python refine.py select    --case my_case.json --run runs/refine-q4740
+python refine.py finalize  --case my_case.json --run runs/refine-q4740
+python refine.py answer    --case my_case.json --run runs/refine-q4740 --condition both --samples 1
+python refine.py report    --case my_case.json --run runs/refine-q4740
+```
+
+`retrieve` 和 `select` 只能读取 `blind_case.json`，其中没有 GT 或历史答案。近似相机视角证据不足时允许并推荐选择 `no_change`。
+
+若仅做使用 GT 的机制诊断，必须显式覆盖候选并留下标记。例如 q4740 将 monitor 向 bed 移动 0.30 m：
+
+```bash
+python refine.py finalize --case my_case.json --run runs/refine-q4740 \
+  --candidate-id toward_030 --diagnostic
+python refine.py answer --case my_case.json --run runs/refine-q4740 \
+  --condition before --samples 1
+python refine.py answer --case my_case.json --run runs/refine-q4740 \
+  --condition after --samples 3
+python refine.py report --case my_case.json --run runs/refine-q4740
+```
+
+重复回答使用完全相同的 16 帧、提示和温度，逐次保存，**不投票、不自动重试**。单次答得更接近 GT 只说明模型输出存在可利用的波动；只有冻结输入下的结果分布稳定改善，才能支持微调有效。`report.json` 同时记录盲选结果、是否为 diagnostic、前后几何距离、每次原始答案、MRA、均值和最佳值。
+
+新增测试：
+
+```bash
+python -m unittest tests.test_refinement -v
+python tests/smoke_refine_blender.py --blender /path/to/blender
+```

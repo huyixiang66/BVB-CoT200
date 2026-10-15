@@ -1,0 +1,43 @@
+{
+  "case_id": "q4740",
+  "scene": "scene0695_00",
+  "question_type": "object_abs_distance",
+  "question": "Measuring from the closest point of each object, what is the distance between the monitor and the bed (in meters)?",
+  "inputs": {
+    "original_video": "/path/to/scene0695_00-original.mp4",
+    "bvb_video": "/path/to/scene0695_00-bvb.mp4",
+    "blend": "/path/to/scene0695_00.blend"
+  },
+  "objects": {
+    "moving": {
+      "label": "monitor",
+      "prefixes": ["monitor base", "monitor housing", "monitor screen", "monitor stand"]
+    },
+    "reference": {
+      "label": "bed",
+      "prefixes": [
+        "bed side rail",
+        "square bed post",
+        "mattress",
+        "mattress support",
+        "bunched duvet",
+        "duvet rounded fold",
+        "back pillow",
+        "head pillow",
+        "gray pillow corner"
+      ]
+    }
+  },
+  "candidates": [
+    {"id": "no_change", "operation": "no_change"},
+    {"id": "toward_015", "operation": "translate", "direction": "toward", "distance_m": 0.15},
+    {"id": "toward_030", "operation": "translate", "direction": "toward", "distance_m": 0.30},
+    {"id": "toward_045", "operation": "translate", "direction": "toward", "distance_m": 0.45},
+    {"id": "away_030", "operation": "translate", "direction": "away", "distance_m": 0.30},
+    {"id": "scale_085", "operation": "scale", "factor": 0.85},
+    {"id": "scale_115", "operation": "scale", "factor": 1.15}
+  ],
+  "ground_truth_m": 1.2,
+  "historical_answers": {"original_m": 2.0, "bvb_m": 1.5},
+  "diagnostic_candidate_id": "toward_030"
+}
