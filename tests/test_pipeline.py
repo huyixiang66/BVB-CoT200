@@ -316,7 +316,7 @@ class DownloadAndRenderTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory, patch.object(p, "urlopen") as request:
             request.return_value.__enter__.return_value = __import__("io").BytesIO(payload)
             p.download(bundle, [{"scene_name": "s"}], Path(directory), "https://example.test")
-            self.assertIn("/resolve/" + "f" * 40 + "/", request.call_args.args[0])
+            self.assertIn("/resolve/" + "f" * 40 + "/", request.call_args.args[0].full_url)
             p.download(bundle, [{"scene_name": "s"}], Path(directory), "https://example.test")
             self.assertEqual(request.call_count, 1)
 

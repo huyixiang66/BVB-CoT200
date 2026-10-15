@@ -1,5 +1,7 @@
 {
-  "release": "bvb-cot200-single-v1",
+  "release": "bvb-cot200-single-v2",
+  "scene_sources": ["astra-xhigh", "luna-xhigh"],
+  "source_selection_note": "Astra preserves v1 frozen recipes/prompts. Luna uses its own timeline and name matches, with prompts generated from actual renders.",
   "date": "2026-10-15",
   "samples_per_question": 1,
   "fixed_camera_questions": 125,
@@ -24,6 +26,7 @@
     "data/questions.jsonl": "5a695686e2c3a95449ccdd490a13a365482954b785c5bcbd2c8929440d53170d",
     "data/recipes.json": "309375a67b9a3b08c022fbf8f4068f87909bfbc40172b512573c4cca54cd7ca4",
     "data/scenes.json": "f9b9c04f1d751b053b669b9aba9e0f0180acd24a481aec9126162e99900ece1a",
-    "data/smoke.json": "da0616e89c5fc385fc6d17dc8222e3912420eb8208ed09c61b38ee94145bc6e9"
+    "data/smoke.json": "da0616e89c5fc385fc6d17dc8222e3912420eb8208ed09c61b38ee94145bc6e9",
+    "data/scenes_luna.json": "3c9e0df00ea66e24c14cb7610df5c60ad7f36fd4289058f524ccd9a3d98676bf"
   }
 }

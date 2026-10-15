@@ -19,16 +19,17 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
 
-from fixed_protocol import build_prompt, extract_answer
+from fixed_protocol import build_prompt, extract_answer, bvb_sample_frames
+from scene_protocol import legacy_views, luna_recipe, render_prompt
 from scoring import semantic_correct
 
 ROOT = Path(__file__).resolve().parent
-RELEASE = "bvb-cot200-single-v1"
+RELEASE = "bvb-cot200-single-v2"
 FIXED = "fixed-camera-C-2026-10-14"
 SOURCE_FILES = ("run.py", "pipeline.py", "fixed_protocol.py", "name_resolver.py",
-                "render_fixed.py", "render_legacy.py", "scoring.py")
+                "render_fixed.py", "render_legacy.py", "scene_protocol.py", "scoring.py")
 FIVE_TYPES = {"object_abs_distance", "room_size_estimation", "route_planning",
               "object_rel_distance", "object_size_estimation"}
 EIGHT_TYPES = FIVE_TYPES | {"object_counting", "object_rel_direction", "obj_appearance_order"}
@@ -66,7 +67,9 @@ def category(qa):
     return "object_rel_direction" if kind.startswith("object_rel_direction") else kind
 
 
-def load_bundle(root=ROOT):
+def load_bundle(root=ROOT, scene_model="astra"):
+    if scene_model not in {"astra", "luna"}:
+        raise ValueError("Scene model must be astra or luna")
     directory = Path(root) / "data"
     provenance = read_json(directory / "provenance.json")
     for name, expected in provenance["files"].items():
@@ -78,7 +81,8 @@ def load_bundle(root=ROOT):
         "questions": read_jsonl(directory / "questions.jsonl"),
         "recipes": read_json(directory / "recipes.json"),
         "prompts": read_json(directory / "prompts.json"),
-        "assets": read_json(directory / "scenes.json"),
+        "assets": read_json(directory / ("scenes_luna.json" if scene_model == "luna" else "scenes.json")),
+        "scene_model": scene_model,
         "smoke": read_json(directory / "smoke.json"),
         "data_hash": data_hash(provenance["files"]),
     }
@@ -109,6 +113,10 @@ def load_bundle(root=ROOT):
                 raise ValueError("Five types must use exactly 16 fixed-camera C frames")
         elif recipe["protocol"] != "legacy-v2-render-single-answer":
             raise ValueError("The other three types must use frozen v2 rendering")
+    if scene_model == "luna":
+        bundle["recipes"] = {q["qa_id"]: luna_recipe(q, bundle["recipes"][q["qa_id"]]) for q in questions}
+        # Luna prompts depend on its own resolved names and rendered views.
+        bundle["prompts"] = {}
     return bundle
 
 
@@ -125,6 +133,7 @@ def select_questions(bundle, smoke=False, only=None):
 def identity(bundle, questions):
     return {
         "release": RELEASE, "samples_per_question": 1, "data_hash": bundle["data_hash"],
+        "scene_model": bundle["scene_model"], "scene_reasoning_effort": "xhigh",
         "qa_ids": [q["qa_id"] for q in questions],
         "source_sha256": {name: digest(ROOT / name) for name in SOURCE_FILES},
     }
@@ -182,7 +191,11 @@ def download(bundle, questions, blends, endpoint):
                bundle["assets"]["revision"] + "/" + asset["remote_path"])
         partial = path.with_suffix(".blend.part")
         try:
-            with urlopen(url, timeout=120) as response, partial.open("wb") as target:
+            request = Request(url)
+            token = os.environ.get("HF_TOKEN")
+            if token:
+                request.add_unredirected_header("Authorization", "Bearer " + token)
+            with urlopen(request, timeout=120) as response, partial.open("wb") as target:
                 shutil.copyfileobj(response, target)
             if partial.stat().st_size != asset["bytes"] or digest(partial) != asset["sha256"]:
                 raise ValueError("Downloaded blend hash mismatch: " + scene)
@@ -218,16 +231,31 @@ def frame_paths(manifest):
     return [Path(frame["file"]) for frame in manifest["frames"]]
 
 
+def expected_prompt(bundle, qa, manifest):
+    if bundle["scene_model"] == "astra":
+        return bundle["prompts"][qa["qa_id"]]
+    return render_prompt(qa, manifest["roles"], [f["view"] for f in manifest["frames"]])
+
+
 def verify_render(bundle, qa, run):
     qid = qa["qa_id"]
     recipe = bundle["recipes"][qid]
     directory = run / "renders" / qid
     manifest = read_json(directory / "manifest.json")
     if (manifest["qa_id"] != qid or manifest["scene"] != qa["scene_name"] or
+            manifest.get("scene_model", "astra") != bundle["scene_model"] or
             manifest["recipe_sha256"] != data_hash(recipe) or
             manifest["blend_sha256"] != bundle["assets"]["scenes"][qa["scene_name"]]["sha256"]):
         raise ValueError("Render provenance mismatch: " + qid)
-    if [f["view"] for f in manifest["frames"]] != recipe["views"]:
+    views = recipe.get("views")
+    if bundle["scene_model"] == "luna":
+        if recipe["protocol"] == FIXED:
+            start, end = manifest["source_timeline"]
+            if manifest["timeline_samples"] != bvb_sample_frames(start, end, min(64, end - start + 1)):
+                raise ValueError("Luna timeline mismatch: " + qid)
+        else:
+            views = legacy_views(qa["question_type"], manifest["roles"], manifest["source_timeline"])
+    if [f["view"] for f in manifest["frames"]] != views:
         raise ValueError("Missing or reordered frames: " + qid)
     for frame in manifest["frames"]:
         path = Path(frame["file"]).resolve()
@@ -235,8 +263,11 @@ def verify_render(bundle, qa, run):
             raise ValueError("Frame outside run or incomplete: " + qid)
         if digest(path) != frame["sha256"]:
             raise ValueError("Frame hash mismatch: " + qid)
-    if (directory / "prompt.txt").read_text(encoding="utf-8") != bundle["prompts"][qid]:
+    prompt = (directory / "prompt.txt").read_text(encoding="utf-8")
+    if prompt != expected_prompt(bundle, qa, manifest):
         raise ValueError("Render prompt mismatch: " + qid)
+    if "prompt_sha256" in manifest and manifest["prompt_sha256"] != hashlib.sha256(prompt.encode()).hexdigest():
+        raise ValueError("Render prompt hash mismatch: " + qid)
     return manifest
 
 
@@ -251,6 +282,7 @@ def normalize_render(bundle, qa, run, raw):
         frames.append({**frame, "file": str(path.resolve()), "sha256": digest(path)})
     manifest = {
         "qa_id": qid, "scene": qa["scene_name"], "recipe_sha256": data_hash(recipe),
+        "scene_model": bundle["scene_model"],
         "blend_sha256": bundle["assets"]["scenes"][qa["scene_name"]]["sha256"],
         "frames": frames, "source_manifest_sha256": digest(raw),
     }
@@ -258,7 +290,11 @@ def normalize_render(bundle, qa, run, raw):
         base = read_json(run / "raw-fixed/shared" / qa["scene_name"] / "manifest.json")
         if [f["camera"] for f in frames] != [f["camera"] for f in base["frames"]]:
             raise ValueError("Fixed camera parameters changed: " + qid)
-        if original["timeline_samples"] != recipe["timeline_samples"]:
+        expected_timeline = recipe.get("timeline_samples")
+        if bundle["scene_model"] == "luna":
+            start, end = original["source_timeline"]
+            expected_timeline = bvb_sample_frames(start, end, min(64, end - start + 1))
+        if original["timeline_samples"] != expected_timeline:
             raise ValueError("Fixed-camera timeline changed: " + qid)
         if any(original["qc"].get(key) is not True for key in (
                 "original_camera_unchanged", "restored_materials", "restored_geometry_visibility", "question_isolation")):
@@ -268,12 +304,21 @@ def normalize_render(bundle, qa, run, raw):
             roles = [dict(role, roles=[label for label in role["roles"]
                                       if "reference" not in label or "target object" not in role["roles"]])
                      for role in roles]
-        if build_prompt(qa, "C", roles) != bundle["prompts"][qid]:
+        if bundle["scene_model"] == "astra" and build_prompt(qa, "C", roles) != bundle["prompts"][qid]:
             raise ValueError("Resolved highlights no longer match the frozen C prompt: " + qid)
+        manifest["roles"] = roles
+        manifest["timeline_samples"] = original["timeline_samples"]
         manifest["unresolved_roles"] = [r["term"] for r in roles if not r["objects"]]
+    elif bundle["scene_model"] == "luna":
+        manifest["roles"] = original["roles"]
+        manifest["unresolved_roles"] = [r["term"] for r in original["roles"] if not r["objects"]]
+    if bundle["scene_model"] == "luna":
+        manifest["source_timeline"] = original["source_timeline"]
+    prompt = expected_prompt(bundle, qa, manifest)
+    manifest["prompt_sha256"] = hashlib.sha256(prompt.encode()).hexdigest()
     directory = run / "renders" / qid
     save_json(directory / "manifest.json", manifest)
-    (directory / "prompt.txt").write_text(bundle["prompts"][qid], encoding="utf-8")
+    (directory / "prompt.txt").write_text(prompt, encoding="utf-8")
     verify_render(bundle, qa, run)
 
 
@@ -298,7 +343,8 @@ def render(bundle, questions, blends, run, blender, timeout=1800):
                 recipe = bundle["recipes"][group[0]["qa_id"]]
                 spec = {
                     "scene": scene, "blend_sha256": bundle["assets"]["scenes"][scene]["sha256"],
-                    "video_frames": recipe["video_frames"], "output": str((run / "raw-fixed").resolve()),
+                    "video_frames": recipe.get("video_frames"), "output": str((run / "raw-fixed").resolve()),
+                    "scene_model": bundle["scene_model"],
                     "arms": ["C"], "questions": [
                         {**q, "roles": bundle["recipes"][q["qa_id"]]["roles"]} for q in group],
                 }
@@ -386,7 +432,7 @@ def answer(bundle, questions, run, model, base_url, max_tokens, workers=4, clien
     parsed = urlparse(base_url)
     if parsed.scheme not in {"https", "http"} or not parsed.netloc or parsed.username or parsed.password or parsed.query:
         raise ValueError("API base URL must not contain credentials or a query")
-    if not model or workers < 1 or max_tokens < 1:
+    if not model or not model.strip() or workers < 1 or max_tokens < 1:
         raise ValueError("Invalid model, workers or token limit")
     if parsed.scheme == "http":
         print("WARNING: HTTP sends your key and frames without TLS; use a trusted tunnel.")
@@ -419,13 +465,14 @@ def answer(bundle, questions, run, model, base_url, max_tokens, workers=4, clien
         def work(qa):
             qid = qa["qa_id"]
             started = time.monotonic()
-            record = {"qa_id": qid, "model": model, "sample": 0,
-                      "prompt_sha256": bundle["recipes"][qid]["prompt_sha256"]}
+            record = {"qa_id": qid, "model": model, "sample": 0, "scene_model": bundle["scene_model"]}
             try:
                 manifest = verify_render(bundle, qa, run)
+                prompt = expected_prompt(bundle, qa, manifest)
+                record["prompt_sha256"] = hashlib.sha256(prompt.encode()).hexdigest()
                 record["frame_sha256"] = [f["sha256"] for f in manifest["frames"]]
                 images = encode_frames(frame_paths(manifest), bundle["recipes"][qid]["jpeg_quality"])
-                reply = request_answer(client, model, bundle["prompts"][qid], images, max_tokens)
+                reply = request_answer(client, model, prompt, images, max_tokens)
                 result = extract_answer(reply["answer_raw"])
                 record.update(reply, answer=result,
                               status="ok" if result and reply["finish_reason"] == "stop" else "invalid_response")
@@ -488,6 +535,8 @@ def report(bundle, questions, run):
         summary[kind]["accuracy"] = summary[kind]["correct"] / n if n else None
     save_json(run / "summary.json", {
         "release": RELEASE, "samples_per_question": 1, "by_type": summary,
+        "scene_model": bundle["scene_model"], "scene_reasoning_effort": "xhigh",
+        "qa_model": config.get("model"),
         "metric": "BVB pilot semantic accuracy (20% numeric tolerance), not VSI MRA or dual-VQA",
         "reported_tokens": sum((r.get("usage") or {}).get("total_tokens", 0) or 0 for r in rows),
         "complete": len(rows) == len(questions), "missing_and_failed_count_as_incorrect": True,
@@ -497,6 +546,7 @@ def report(bundle, questions, run):
         writer.writeheader()
         writer.writerows(detailed)
     lines = ["# BVB-CoT200 Single-Answer Results", "",
+             f"Scene source: BVB {bundle['scene_model']} xhigh. QA model: {config.get('model', 'unknown')}.", "",
              "One request per question; missing/failed answers remain in the denominator.",
              "Development set; not held-out evidence. Not a controlled comparison to historical runs.", "",
              "| Type | Correct | Valid |", "| --- | ---: | ---: |"]

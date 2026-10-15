@@ -41,7 +41,7 @@ spec = json.loads(Path(spec_path).read_text(encoding="utf-8"))
 out_dir = Path(spec["out_dir"]).resolve()
 out_dir.mkdir(parents=True, exist_ok=True)
 scene = bpy.context.scene
-scene.frame_set(spec.get("frame", 1))
+scene.frame_set(spec.get("frame", scene.frame_start if spec.get("scene_model") == "luna" else 1))
 orig_cam = scene.camera
 
 # ---------- engine ----------
@@ -94,6 +94,11 @@ print("[rqa] hidden=%d by %s exempt=%s" % (hid, hide_terms, keep_terms))
 
 meshes = [o for o in bpy.data.objects if o.type == "MESH" and not o.hide_render]
 
+if spec.get("scene_model") == "luna":
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from scene_protocol import resolve_legacy_spec
+    spec = resolve_legacy_spec(spec, [o.name for o in meshes])
+
 def bbox_of(objs):
     xs = []; ys = []; zs = []
     for o in objs:
@@ -124,7 +129,7 @@ def match_objs(names):
     out = []
     for o in meshes:
         for p in names:
-            if o.name.lower().startswith(p.lower()):
+            if (o.name == p if spec.get("exact_names") else o.name.lower().startswith(p.lower())):
                 out.append(o)
                 break
     return out
@@ -605,7 +610,9 @@ for o in ann_objs + gap_objs:
 
 # ---------- render ----------
 manifest = {"qa_id": spec.get("qa_id"), "scene": spec.get("scene"), "spec": spec,
-            "engine": engine_set, "frames": [], "grid": grid_info}
+            "engine": engine_set, "frames": [], "grid": grid_info,
+            "roles": spec.get("resolved_roles", []),
+            "source_timeline": [scene.frame_start, scene.frame_end]}
 t0 = time.time()
 for i, (tag, use_scene_cam, params) in enumerate(shots, 1):
     if use_scene_cam:

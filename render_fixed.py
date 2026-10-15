@@ -188,7 +188,10 @@ def render_scene(spec_path):
     scene.render.image_settings.file_format = "PNG"
     scene.render.image_settings.color_mode = "RGB"
     scene.render.use_file_extension = True
-    frame_ids = bvb_sample_frames(scene.frame_start, scene.frame_end, spec["video_frames"])
+    video_frames = spec.get("video_frames")
+    if video_frames is None:
+        video_frames = min(64, scene.frame_end - scene.frame_start + 1)
+    frame_ids = bvb_sample_frames(scene.frame_start, scene.frame_end, video_frames)
     meshes = [o for o in scene.objects if o.type == "MESH"]
     baseline_materials = original_material_signature(meshes)
     initial_camera = scene.camera
@@ -217,7 +220,8 @@ def render_scene(spec_path):
                                        "original_camera", camera_record(scene)))
         shared_manifest = {"scene": spec["scene"], "version": VERSION,
                            "render_hash": spec["render_hash"], "blend_sha256": spec["blend_sha256"],
-                           "source_video_frames": spec["video_frames"],
+                           "source_video_frames": video_frames,
+                           "source_timeline": [scene.frame_start, scene.frame_end],
                            "timeline_samples": frame_ids, "frames": frames,
                            "engine": scene.render.engine}
         write_json(shared_manifest_path, shared_manifest)
@@ -292,6 +296,7 @@ def render_scene(spec_path):
         write_json(manifest_path, {
             "version": VERSION, "qa_id": qaid, "scene": spec["scene"],
             "render_hash": spec["render_hash"], "blend_sha256": spec["blend_sha256"],
+            "source_timeline": [scene.frame_start, scene.frame_end],
             "timeline_samples": frame_ids, "frames": frames, "roles": resolved,
             "changed_objects": sorted(changed), "plan": plan_settings,
             "roof_hidden_in_plan_only": [o.name for o in roof_hidden],

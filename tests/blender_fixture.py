@@ -8,8 +8,9 @@ from mathutils import Vector
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 scene = bpy.context.scene
-scene.frame_start = 1
-scene.frame_end = 24
+args = sys.argv[sys.argv.index("--") + 1:]
+scene.frame_start = int(args[1]) if len(args) > 1 else 1
+scene.frame_end = int(args[2]) if len(args) > 2 else 24
 scene.render.resolution_percentage = 100
 material = bpy.data.materials.new("FixtureMaterial")
 material.use_nodes = True
@@ -31,12 +32,12 @@ bpy.ops.object.camera_add(location=(7, -9, 6))
 camera = bpy.context.object
 camera.name = "FixtureCamera"
 scene.camera = camera
-for frame, location in ((1, (7, -9, 6)), (24, (-7, -9, 6))):
+for frame, location in ((scene.frame_start, (7, -9, 6)), (scene.frame_end, (-7, -9, 6))):
     camera.location = location
     camera.rotation_euler = (Vector((0, 0, 0.7)) - camera.location).to_track_quat("-Z", "Y").to_euler()
     camera.keyframe_insert(data_path="location", frame=frame)
     camera.keyframe_insert(data_path="rotation_euler", frame=frame)
-scene.frame_set(1)
-output = Path(sys.argv[sys.argv.index("--") + 1]).resolve()
+scene.frame_set(scene.frame_start)
+output = Path(args[0]).resolve()
 output.parent.mkdir(parents=True, exist_ok=True)
 bpy.ops.wm.save_as_mainfile(filepath=str(output))
