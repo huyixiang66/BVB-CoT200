@@ -1,0 +1,762 @@
+{
+  "dataset": "yunlong10/BVB-results",
+  "revision": "de963fc6c4ba3a9b999b318303067f110139f3e5",
+  "scenes": {
+    "41069043": {
+      "file": "41069043.blend",
+      "bytes": 12477616,
+      "sha256": "0e3f4c371846fb0be71c735c72ccdba16b08b9a54b74e6536bf9d86a6b181e05",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/41069043.blend"
+    },
+    "42898486": {
+      "file": "42898486.blend",
+      "bytes": 14312400,
+      "sha256": "111eb881d3af58a7efb3579f1fcf825516c7823642c00931bc5c7fe6370ec69c",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/42898486.blend"
+    },
+    "45663154": {
+      "file": "45663154.blend",
+      "bytes": 21373256,
+      "sha256": "b2cd10f7374a4e61380e3bc29575242da1f15ed0dcfe08d782ab9f85e3bcf5ba",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/45663154.blend"
+    },
+    "47331319": {
+      "file": "47331319.blend",
+      "bytes": 22417536,
+      "sha256": "683630cf90b6b8fb4583feee2bda0c6e00cd005d95f2724d09b375bcd184be7b",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/47331319.blend"
+    },
+    "41142280": {
+      "file": "41142280.blend",
+      "bytes": 12464568,
+      "sha256": "cd3921d638ff71037d1ad1d969e474df7834e84ded7cd43b56251edebd945632",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/41142280.blend"
+    },
+    "42444976": {
+      "file": "42444976.blend",
+      "bytes": 28188792,
+      "sha256": "bf0ba611440f92d2874e06bcf52f7a50c44c3ddd6aeaef882018b8b6eb4d31fc",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/42444976.blend"
+    },
+    "42898544": {
+      "file": "42898544.blend",
+      "bytes": 12829528,
+      "sha256": "4f8a2ae1241b21df937d488a45229c6fbe8946e9163b08487b103628b374cf83",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/42898544.blend"
+    },
+    "42899720": {
+      "file": "42899720.blend",
+      "bytes": 12215300,
+      "sha256": "890476b1b8bfb9cdfc20c28f5092f3c51528fa0e1b580a4d208f172e43136659",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/42899720.blend"
+    },
+    "42899739": {
+      "file": "42899739.blend",
+      "bytes": 11362940,
+      "sha256": "829d9dff03393c21901d44cecf94797ba58167b9970c64186ce809cdff7d4651",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/42899739.blend"
+    },
+    "45260900": {
+      "file": "45260900.blend",
+      "bytes": 67204736,
+      "sha256": "da9c65880b8d265f0b2845420f007d51539e5bf9a4c6ef332b2842795bb96da1",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/45260900.blend"
+    },
+    "47429977": {
+      "file": "47429977.blend",
+      "bytes": 21527356,
+      "sha256": "2cfd7072f8be39f38ea31d517c80812ed0cb8d9a9e6c064d6ac47243a9ce1d86",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/47429977.blend"
+    },
+    "42446049": {
+      "file": "42446049.blend",
+      "bytes": 20290036,
+      "sha256": "d37d45332d0af233e67c939ff88127df627a6e5327bc0de867c403ec085c5f6e",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/42446049.blend"
+    },
+    "42899696": {
+      "file": "42899696.blend",
+      "bytes": 14635000,
+      "sha256": "78b3f8335542978d19a887bb6e5db575d46e127729b7c1e48cdf7f80e5d023b0",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/42899696.blend"
+    },
+    "45260905": {
+      "file": "45260905.blend",
+      "bytes": 53907188,
+      "sha256": "b56fb9ecf23736b96ee4078150ff5ee07a7b5474449a92e3af124354aa6fda18",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/45260905.blend"
+    },
+    "47331063": {
+      "file": "47331063.blend",
+      "bytes": 12398092,
+      "sha256": "de2a9f6e9dbc7d54e42561e298f40c53a5de0d3c20ed90f02867814c490965f8",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/47331063.blend"
+    },
+    "47331316": {
+      "file": "47331316.blend",
+      "bytes": 13573768,
+      "sha256": "6ef3d641538f0b1a8909b93edaaafca45e9d1f913bd4ff42fd253fcc98d1df08",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/47331316.blend"
+    },
+    "47332908": {
+      "file": "47332908.blend",
+      "bytes": 10343780,
+      "sha256": "8f2e6abeb0eff92db83a35b99043da06faa875404e7e89aa6b711a84fd3c2e54",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/47332908.blend"
+    },
+    "47333457": {
+      "file": "47333457.blend",
+      "bytes": 31722952,
+      "sha256": "c865cca7b20bc41b6e4d874e67b019b4d80977e26c887cee18ae9385aafe884f",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/47333457.blend"
+    },
+    "42445984": {
+      "file": "42445984.blend",
+      "bytes": 29908456,
+      "sha256": "1e82b50a3411241f4f7521c7cf0cc3e2901f160846e2ff7f2d1d8965b5d5e0b3",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/42445984.blend"
+    },
+    "42446541": {
+      "file": "42446541.blend",
+      "bytes": 27154776,
+      "sha256": "772163c43d181b8b9051d45b4266ff741522a2dba69a887481c777b7ca8cb201",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/42446541.blend"
+    },
+    "42897629": {
+      "file": "42897629.blend",
+      "bytes": 50226580,
+      "sha256": "fb2ed8aca94081adfa681a76230285135d88467dbc3818295144d8fed78f4b73",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/42897629.blend"
+    },
+    "42898826": {
+      "file": "42898826.blend",
+      "bytes": 15893764,
+      "sha256": "090f931949f92786e8761a823573ea453b74f6ee271d5029fb96bbb43616eccd",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/42898826.blend"
+    },
+    "45662943": {
+      "file": "45662943.blend",
+      "bytes": 18385560,
+      "sha256": "86a52cd9ff1dd0073e8d32df71a41e2fc3db9a0178f51e5402634ccb475d6dd7",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/45662943.blend"
+    },
+    "47331668": {
+      "file": "47331668.blend",
+      "bytes": 19920068,
+      "sha256": "4dd6ce46b6622f8f3e747ea67351ba8a62556ebfaa5359cdeeda8e5f7b80e042",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/47331668.blend"
+    },
+    "47333899": {
+      "file": "47333899.blend",
+      "bytes": 25772676,
+      "sha256": "a964894e606a7df5aac00a37e4e40d17aad84298618e27510a6b6acd21489f3e",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/47333899.blend"
+    },
+    "47430468": {
+      "file": "47430468.blend",
+      "bytes": 31054780,
+      "sha256": "3b26e34cf2d939a5757d7fb267970d4b51ed025ea1d613bd68a596f751ccb39a",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/47430468.blend"
+    },
+    "42446167": {
+      "file": "42446167.blend",
+      "bytes": 15500200,
+      "sha256": "f32a952399b052b43e2644889619ecf64577e1ddedac311157b1b59f7e396a16",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/42446167.blend"
+    },
+    "47334096": {
+      "file": "47334096.blend",
+      "bytes": 32110096,
+      "sha256": "d24b234b8d34c5a2cdfd2dbe9195f51613e18407d612b05d6272ed67dd48759d",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/47334096.blend"
+    },
+    "47430048": {
+      "file": "47430048.blend",
+      "bytes": 27273716,
+      "sha256": "746b6aa15539deff7d6c9c125f4d58bb3f91b7594447ddbf9c032eab5cd62ce5",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/47430048.blend"
+    },
+    "41159525": {
+      "file": "41159525.blend",
+      "bytes": 26878368,
+      "sha256": "174b2a5b692eb2268dc7ad9a80312cdffa039498d79706e24106e3051a7dadc4",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/41159525.blend"
+    },
+    "42445031": {
+      "file": "42445031.blend",
+      "bytes": 17734592,
+      "sha256": "2e8a533963b6c2f72e923ad331ea70b960aeb41ffb17bb0bfd6ad69b7d92c242",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/42445031.blend"
+    },
+    "42897538": {
+      "file": "42897538.blend",
+      "bytes": 61629408,
+      "sha256": "44497e0050dfda438b0cfc12a9b0b401969b6e7abe7a3901f6891605b7323ac6",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/42897538.blend"
+    },
+    "41069025": {
+      "file": "41069025.blend",
+      "bytes": 14603228,
+      "sha256": "56423fa73e2b65fbecb31bd9618710e12dc3cca48775a7b8702f085c33176950",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/41069025.blend"
+    },
+    "47430038": {
+      "file": "47430038.blend",
+      "bytes": 33411848,
+      "sha256": "50ed47abf556f29ba5ca1faa03f18f802eda867050bb7f3abcb5b2d6cb17294e",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/47430038.blend"
+    },
+    "42898527": {
+      "file": "42898527.blend",
+      "bytes": 17192512,
+      "sha256": "3acd3ac18e356af943dcdffc2cd07cabc83638bd2f72eb7927003f078d1fef27",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/42898527.blend"
+    },
+    "47331972": {
+      "file": "47331972.blend",
+      "bytes": 27507464,
+      "sha256": "a208b5466705ac4a7c359ea4c1b51d035924d0b18fa319785590766b75791b28",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/47331972.blend"
+    },
+    "d755b3d9d8": {
+      "file": "d755b3d9d8.blend",
+      "bytes": 28196924,
+      "sha256": "ebff1fde060f2cf637b46d709c460ada329f88a64bb51fd3f9e9f7cedb5719a3",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/d755b3d9d8.blend"
+    },
+    "fb5a96b1a2": {
+      "file": "fb5a96b1a2.blend",
+      "bytes": 23481012,
+      "sha256": "ad98e694a7d68699962767c7a51c303d43d7d7c50acba0755197101707075ed0",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/fb5a96b1a2.blend"
+    },
+    "3e8bba0176": {
+      "file": "3e8bba0176.blend",
+      "bytes": 16518504,
+      "sha256": "ebdf011c355e2478505fc89fe1bf83f5707d17a63e6f766038dc48ee62b49855",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/3e8bba0176.blend"
+    },
+    "a980334473": {
+      "file": "a980334473.blend",
+      "bytes": 9300364,
+      "sha256": "e22ddea572db5a64a391fbc5d93d9c9ebd04ef7cfa49adaa15db0dab806758c7",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/a980334473.blend"
+    },
+    "5942004064": {
+      "file": "5942004064.blend",
+      "bytes": 45220288,
+      "sha256": "fa5fbac6495cd77d9eb8a30a0ec71890f9066021bbb5f910ff1c1f710984e101",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/5942004064.blend"
+    },
+    "0d2ee665be": {
+      "file": "0d2ee665be.blend",
+      "bytes": 14612988,
+      "sha256": "07c5415c2d48ae9cba15e52a958b4914f3fb6a65372b413edff459b17c84d2c5",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/0d2ee665be.blend"
+    },
+    "9071e139d9": {
+      "file": "9071e139d9.blend",
+      "bytes": 18475136,
+      "sha256": "17de1410cab77404a9cb8c55866dbfe5c3f1871eaecba3617e1bb631eea2afad",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/9071e139d9.blend"
+    },
+    "acd95847c5": {
+      "file": "acd95847c5.blend",
+      "bytes": 16343664,
+      "sha256": "05b9577a3f555da92eaacefe574b255513508a2b0e73e49994d53bf889faab32",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/acd95847c5.blend"
+    },
+    "5eb31827b7": {
+      "file": "5eb31827b7.blend",
+      "bytes": 23956300,
+      "sha256": "76f039abd701b0a82e68d59eef91400a39034d319d4e249417091caa95e7d3eb",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/5eb31827b7.blend"
+    },
+    "f9f95681fd": {
+      "file": "f9f95681fd.blend",
+      "bytes": 25775004,
+      "sha256": "388613485e9ddf651aa90c519e33a8d6ec4297f69def254ace308e09af624f56",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/f9f95681fd.blend"
+    },
+    "1ada7a0617": {
+      "file": "1ada7a0617.blend",
+      "bytes": 12514448,
+      "sha256": "599cee4b2978867b10ccc2059fdc70bdf13a964bb43d3b0323d1f71b6722ffcd",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/1ada7a0617.blend"
+    },
+    "3864514494": {
+      "file": "3864514494.blend",
+      "bytes": 10438504,
+      "sha256": "b3247042ec3a32b38127136d45f71b499fe99c7afc36f7eca8e09185489e6ac8",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/3864514494.blend"
+    },
+    "25f3b7a318": {
+      "file": "25f3b7a318.blend",
+      "bytes": 23820996,
+      "sha256": "4530cfedc56e0005b758b683fbcff1f997c46d8ee334e06ed7e32f95f9f048ab",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/25f3b7a318.blend"
+    },
+    "f3d64c30f8": {
+      "file": "f3d64c30f8.blend",
+      "bytes": 15340224,
+      "sha256": "73082ce1b997deaf9156a512de464ad3db2232dd0423134e804d1c9bc0337408",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/f3d64c30f8.blend"
+    },
+    "3db0a1c8f3": {
+      "file": "3db0a1c8f3.blend",
+      "bytes": 33971928,
+      "sha256": "453831844e4cdf1ec78da98e5b8a8faa007f9d1726661b1d5fb9e5f776707855",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/3db0a1c8f3.blend"
+    },
+    "5f99900f09": {
+      "file": "5f99900f09.blend",
+      "bytes": 28415804,
+      "sha256": "42857c94894d1f44a17668b9638c8339ab6a85757d93348936cbe2ecc99647bc",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/5f99900f09.blend"
+    },
+    "27dd4da69e": {
+      "file": "27dd4da69e.blend",
+      "bytes": 20767476,
+      "sha256": "f6c3ac81eac3988bde2864542d241060c2bac4128bd01c9ace9f5697f388c2c9",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/27dd4da69e.blend"
+    },
+    "3f15a9266d": {
+      "file": "3f15a9266d.blend",
+      "bytes": 13297304,
+      "sha256": "f10f072c7b1ed110a1ff80ad18e73ee624fd8b4c7993f47a1e87d1f851d0eadb",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/3f15a9266d.blend"
+    },
+    "38d58a7a31": {
+      "file": "38d58a7a31.blend",
+      "bytes": 13595748,
+      "sha256": "9da6faf340a2affe80359db39f15f7bc5f62d410ffb4b9858289274a72c0e696",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/38d58a7a31.blend"
+    },
+    "6115eddb86": {
+      "file": "6115eddb86.blend",
+      "bytes": 19455736,
+      "sha256": "31e128e0fc9481a43305ea098c3ce5574b12423b6102f839859db5f462971a31",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/6115eddb86.blend"
+    },
+    "7b6477cb95": {
+      "file": "7b6477cb95.blend",
+      "bytes": 10909308,
+      "sha256": "5fc6b9ca44b36a6cab1079d9b992160016eca0a7382d2b78c6f44f4c918fbc45",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/7b6477cb95.blend"
+    },
+    "c50d2d1d42": {
+      "file": "c50d2d1d42.blend",
+      "bytes": 13871988,
+      "sha256": "6a111434034f3bb64780093ea1efddb5baf7ca1d425d9878994b9fbd42d43b7e",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/c50d2d1d42.blend"
+    },
+    "7831862f02": {
+      "file": "7831862f02.blend",
+      "bytes": 25440304,
+      "sha256": "750423070c487a3fc99a4e9453f3f5d3170f856d1638b9f358d4a61443c5d2d2",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/7831862f02.blend"
+    },
+    "b0a08200c9": {
+      "file": "b0a08200c9.blend",
+      "bytes": 20296120,
+      "sha256": "147a1a334086e3d161cb708cdfdd27b0d33417893abe7f386bf1dd4bb8bcfca8",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/b0a08200c9.blend"
+    },
+    "c5439f4607": {
+      "file": "c5439f4607.blend",
+      "bytes": 27016988,
+      "sha256": "038b6232a15b203fc338f05448326019ccd42ef5ca6633f8d6f58071aad6dfde",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/c5439f4607.blend"
+    },
+    "578511c8a9": {
+      "file": "578511c8a9.blend",
+      "bytes": 33006820,
+      "sha256": "d76b449d09872d70cabdcff0e02a3443e383459dcdb7265fead2ef4b94aba2ed",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/578511c8a9.blend"
+    },
+    "cc5237fd77": {
+      "file": "cc5237fd77.blend",
+      "bytes": 15139964,
+      "sha256": "01d7e92b7bb7e310377ecae86793b3229a5a7df8b169b49805da5950e772db1c",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/cc5237fd77.blend"
+    },
+    "c4c04e6d6c": {
+      "file": "c4c04e6d6c.blend",
+      "bytes": 27143416,
+      "sha256": "b651f799eab398f7748a10dd1f98421ad0587face14456c49c0c07ea42199bd7",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/c4c04e6d6c.blend"
+    },
+    "286b55a2bf": {
+      "file": "286b55a2bf.blend",
+      "bytes": 29694660,
+      "sha256": "6d0b462c1152279fde3464d88403c0a41f322bf4cd57c8c29b56a2689428d9cd",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/286b55a2bf.blend"
+    },
+    "825d228aec": {
+      "file": "825d228aec.blend",
+      "bytes": 8748208,
+      "sha256": "46b140384d3055e5c5987d0c0193f0bb689d7bdda808bd8de854acf4af5126fe",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/825d228aec.blend"
+    },
+    "99fa5c25e1": {
+      "file": "99fa5c25e1.blend",
+      "bytes": 20637936,
+      "sha256": "2511290e732f2eaffb249745a143eb3afe537fe5b85278188576e863bcaa1626",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/99fa5c25e1.blend"
+    },
+    "45b0dac5e3": {
+      "file": "45b0dac5e3.blend",
+      "bytes": 30226652,
+      "sha256": "a48945ed4707581093904371dafed04cc7ad355684f1a20671888f23ca759ab9",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/45b0dac5e3.blend"
+    },
+    "09c1414f1b": {
+      "file": "09c1414f1b.blend",
+      "bytes": 18736968,
+      "sha256": "88e2f1d407aaf061cd4d2b7ffd7a9d02f5fb74f32e44206e9db90d0d4d690f27",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/09c1414f1b.blend"
+    },
+    "scene0633_00": {
+      "file": "scene0633_00.blend",
+      "bytes": 15544084,
+      "sha256": "67e30d63ecd0ff1755b5ad5e58bfbc75590657dde4d76b6c633f81847999470e",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/scene0633_00.blend"
+    },
+    "scene0643_00": {
+      "file": "scene0643_00.blend",
+      "bytes": 22888656,
+      "sha256": "9d98e2d4896339f091d5a0288bb008318e178c403a702c88c91f02807261821b",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/scene0643_00.blend"
+    },
+    "scene0651_02": {
+      "file": "scene0651_02.blend",
+      "bytes": 4868304,
+      "sha256": "ddf9bb27ffdcfb9167db3575814796cc323b0f2bf26571801fc695a4efb82b92",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/scene0651_02.blend"
+    },
+    "scene0653_00": {
+      "file": "scene0653_00.blend",
+      "bytes": 18943764,
+      "sha256": "b0e8a73e3efddcb975befdd0f8afcd7ca781249907eb055e2142d68796c9c4a3",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/scene0653_00.blend"
+    },
+    "scene0663_00": {
+      "file": "scene0663_00.blend",
+      "bytes": 27015716,
+      "sha256": "1faf70b04cd7a22f7867a700c9a519bc9a7703e1ad24140c83e05633b393ef80",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/scene0663_00.blend"
+    },
+    "scene0697_01": {
+      "file": "scene0697_01.blend",
+      "bytes": 44820204,
+      "sha256": "ac68d8e5006c8ab1a3fa566f42b9af2286cc96fc8fdefb596b4c8f198d138745",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/scene0697_01.blend"
+    },
+    "scene0458_00": {
+      "file": "scene0458_00.blend",
+      "bytes": 13184928,
+      "sha256": "3bbc9e38aad732feda56f36528a70bf7783f4a7075f527f5cb1837e54d7ebd7c",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/scene0458_00.blend"
+    },
+    "scene0591_01": {
+      "file": "scene0591_01.blend",
+      "bytes": 12960612,
+      "sha256": "032f64f215f5727dc0141ee4d93a4140ae320fe6627d2d821d937e8bcbc1229b",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/scene0591_01.blend"
+    },
+    "scene0046_01": {
+      "file": "scene0046_01.blend",
+      "bytes": 23059412,
+      "sha256": "9431f17fabff4d8978270329ffb54c009ad69f75b268034f4303057f7b42e0c6",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/scene0046_01.blend"
+    },
+    "scene0221_01": {
+      "file": "scene0221_01.blend",
+      "bytes": 22333900,
+      "sha256": "2a1df60a1e0b087ce31c117123075e7a5b9da6bf43dd5beab7932fc70ac7045e",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/scene0221_01.blend"
+    },
+    "scene0222_01": {
+      "file": "scene0222_01.blend",
+      "bytes": 12571592,
+      "sha256": "1d6de52444bdeae74474ae80a8cf757e1e520e2063f6cbe373734cd1d29d61c7",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/scene0222_01.blend"
+    },
+    "scene0356_00": {
+      "file": "scene0356_00.blend",
+      "bytes": 9885680,
+      "sha256": "9a208e3e04cb80f457c1aea3ce3277e70433ca6bfa9e89948dbeae5aa86a7bcf",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/scene0356_00.blend"
+    },
+    "scene0664_02": {
+      "file": "scene0664_02.blend",
+      "bytes": 6652912,
+      "sha256": "8a9368cb959e908aebc81df675e7e81206de7d743c10a66b7bbe12d3b2c16523",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/scene0664_02.blend"
+    },
+    "scene0494_00": {
+      "file": "scene0494_00.blend",
+      "bytes": 19842080,
+      "sha256": "1ad6f8ac8aae3673abd0ce6d4232fadc5412c35b57690bb79211ca8e6d4f44e7",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/scene0494_00.blend"
+    },
+    "scene0553_00": {
+      "file": "scene0553_00.blend",
+      "bytes": 10623160,
+      "sha256": "37e39816b94e6b27b93dfdae4f86cddfd6ecdc55a26a07e8bc638ef549f2ed44",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/scene0553_00.blend"
+    },
+    "scene0608_00": {
+      "file": "scene0608_00.blend",
+      "bytes": 22149028,
+      "sha256": "b7de09fab206882da47418297cc15dd88cebb78cc49762396139746175e96305",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/scene0608_00.blend"
+    },
+    "scene0100_00": {
+      "file": "scene0100_00.blend",
+      "bytes": 17602988,
+      "sha256": "add7c70e05ac97a7c45e8c086b7fefc4aaa162c3cbc2f0e8e1237e44aa27d013",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/scene0100_00.blend"
+    },
+    "scene0164_02": {
+      "file": "scene0164_02.blend",
+      "bytes": 11367256,
+      "sha256": "a8c3b30dae13b7e7f2b53ad6e90927d4082ba8f9e29cd05a330e0a0d2f1d2cc5",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/scene0164_02.blend"
+    },
+    "scene0207_02": {
+      "file": "scene0207_02.blend",
+      "bytes": 18461120,
+      "sha256": "841f406c8cc9f6a34527dfc137400fe65a7dc6004f9c8dab5ec618ce7deb913d",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/scene0207_02.blend"
+    },
+    "scene0231_00": {
+      "file": "scene0231_00.blend",
+      "bytes": 32501472,
+      "sha256": "91ce0d8ab26f5e2e19fc500add8b2ea166c17b122d01d239b99fbabf157f353e",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/scene0231_00.blend"
+    },
+    "scene0304_00": {
+      "file": "scene0304_00.blend",
+      "bytes": 13123560,
+      "sha256": "1e50ef68fe9617b753a53efaaa1eab78cb9a0f36eca4c3045b337cd187bc911a",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/scene0304_00.blend"
+    },
+    "scene0645_00": {
+      "file": "scene0645_00.blend",
+      "bytes": 28964236,
+      "sha256": "db90e0d9aabfe758811753de0441dc8acec4f676dded401ce23b6a1c01c61800",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/scene0645_00.blend"
+    },
+    "scene0693_00": {
+      "file": "scene0693_00.blend",
+      "bytes": 24632032,
+      "sha256": "ca716639b5035412a1e3f1c7cc54eb6b30ce4050a33b34020c15e97c328972c4",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/scene0693_00.blend"
+    },
+    "scene0328_00": {
+      "file": "scene0328_00.blend",
+      "bytes": 22442216,
+      "sha256": "5d2f15889756384e7986af509bbc51cea0bf5bb4e521d2cb2b5511db713d959a",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/scene0328_00.blend"
+    },
+    "scene0353_00": {
+      "file": "scene0353_00.blend",
+      "bytes": 7923700,
+      "sha256": "fb5cbf28b62e17a8b20591609eb7d8ea90cd805ebd9265fbc5d1b45ace761852",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/scene0353_00.blend"
+    },
+    "scene0378_01": {
+      "file": "scene0378_01.blend",
+      "bytes": 27119708,
+      "sha256": "333298c5812178701b036c6281b576c754b4afc6a25b8a19c694e9c8cffb1fb8",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/scene0378_01.blend"
+    },
+    "scene0426_00": {
+      "file": "scene0426_00.blend",
+      "bytes": 9772092,
+      "sha256": "473d0f432d21822fb31a8bb6303df38ae2c144a19781a3a75dd7d25b81accb6e",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/scene0426_00.blend"
+    },
+    "scene0684_01": {
+      "file": "scene0684_01.blend",
+      "bytes": 6057912,
+      "sha256": "d7bed7cc5dfc2399921904cabc9f9cf57938423a06ced630087f92419fce3738",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/scene0684_01.blend"
+    },
+    "scene0461_00": {
+      "file": "scene0461_00.blend",
+      "bytes": 10471744,
+      "sha256": "b0d82720e77ccdfdebf2194e2449863d498db30e4a70dca14c551aa122150bff",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/scene0461_00.blend"
+    },
+    "scene0580_01": {
+      "file": "scene0580_01.blend",
+      "bytes": 49379640,
+      "sha256": "4fe8fb772cb6a6c0a193cf1fb3c4ae5ff7b581de044da24d3696652231bef4d2",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/scene0580_01.blend"
+    },
+    "scene0030_02": {
+      "file": "scene0030_02.blend",
+      "bytes": 24525892,
+      "sha256": "2b1bdcff861f246ca82153c3059e5a2057ddd1527e6a27c385ede7f080dd5a9b",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/scene0030_02.blend"
+    },
+    "scene0086_02": {
+      "file": "scene0086_02.blend",
+      "bytes": 23127280,
+      "sha256": "7181ed9ca3278cfe200c1fcfc2223fa28c0c4280fa79fdcf8401ad112f77c6e1",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/scene0086_02.blend"
+    },
+    "scene0025_01": {
+      "file": "scene0025_01.blend",
+      "bytes": 14632776,
+      "sha256": "5796399d7e010736708d8fbc6b7508db2b9b01008f7f0aa88ccec2f89bfbd82c",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/scene0025_01.blend"
+    },
+    "scene0149_00": {
+      "file": "scene0149_00.blend",
+      "bytes": 34467592,
+      "sha256": "11d9392fb778a0ed66be6d277a5353b5d5a5b947bc39f14e2972a4dbc39e93f0",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/scene0149_00.blend"
+    },
+    "scene0412_00": {
+      "file": "scene0412_00.blend",
+      "bytes": 10126388,
+      "sha256": "fcc0d53d18bae9828ede54b467564221e3bef503c63f16c33ddc041a3c855e19",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/scene0412_00.blend"
+    },
+    "scene0500_00": {
+      "file": "scene0500_00.blend",
+      "bytes": 19925896,
+      "sha256": "d5741c3cc3c06ba70cdc8743099f94788b13a85b9966301fa07d228b960c7f52",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/scene0500_00.blend"
+    },
+    "scene0629_01": {
+      "file": "scene0629_01.blend",
+      "bytes": 17831880,
+      "sha256": "a32fb625ac3da955e1431f98df46520170df6e30a4722582897a9ef3595fd8b5",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/scene0629_01.blend"
+    },
+    "scene0695_00": {
+      "file": "scene0695_00.blend",
+      "bytes": 24927708,
+      "sha256": "8bcfdbe76b75f9a376fa5f75f68d9b38ca1585ac8e8025d3ad306e75617efa5c",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/scene0695_00.blend"
+    },
+    "scene0568_02": {
+      "file": "scene0568_02.blend",
+      "bytes": 15126432,
+      "sha256": "2a19b56dc50c690973af87e6588904345d6908a15868aa39919e737ed64abaf9",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/scene0568_02.blend"
+    },
+    "scene0575_01": {
+      "file": "scene0575_01.blend",
+      "bytes": 8529340,
+      "sha256": "ceb8371f5603ee148dae8e3784bd944df28da1997ac7b1a6798e8746ce1ae4da",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/scene0575_01.blend"
+    },
+    "42445429": {
+      "file": "42445429.blend",
+      "bytes": 31202160,
+      "sha256": "137262c7691a92e93d3a19ba0cf4e6d1586a3443bbb06837c463edc8fd8909fb",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/42445429.blend"
+    },
+    "42446517": {
+      "file": "42446517.blend",
+      "bytes": 16664272,
+      "sha256": "d2c3d379ea2ab1d454ccf2d2d0bde278a42e408104169deb88d330ea7f1ec51d",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/42446517.blend"
+    },
+    "scene0153_00": {
+      "file": "scene0153_00.blend",
+      "bytes": 4869376,
+      "sha256": "306f815aae330059ae3acbf976c81d50f3853f03fe02e4e97ad2f7329c990465",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/scene0153_00.blend"
+    },
+    "scene0488_01": {
+      "file": "scene0488_01.blend",
+      "bytes": 5938756,
+      "sha256": "f2e4475029acbb3313a18cedf5f40776174d5e9b0f5d8fa347075d13f050d332",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/scene0488_01.blend"
+    },
+    "42899617": {
+      "file": "42899617.blend",
+      "bytes": 22194464,
+      "sha256": "79728b5740ed1027b8eedef3fa9fe2ef6fdff51e99b5954a62e5f65284c3c828",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/42899617.blend"
+    },
+    "scene0496_00": {
+      "file": "scene0496_00.blend",
+      "bytes": 14521212,
+      "sha256": "7d958f3609749eceb8e50df4b54c9bb200b12a47d729b532329fe786ebc4f0c7",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/scene0496_00.blend"
+    },
+    "41125731": {
+      "file": "41125731.blend",
+      "bytes": 12134016,
+      "sha256": "5b92b83d220b65510d624284e793af2d0d91a4548e4b03c4a427ec9e3ded0748",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/41125731.blend"
+    },
+    "scene0593_00": {
+      "file": "scene0593_00.blend",
+      "bytes": 9755752,
+      "sha256": "7faecc9db38a5b1b2f54cf70c5c68d0fc3b01c37a3f94f54d43473d25b76714c",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/scene0593_00.blend"
+    },
+    "42899612": {
+      "file": "42899612.blend",
+      "bytes": 15084372,
+      "sha256": "834cdfcceaa04e89451a8fa0574d6c7a997d1ba7815de63fc1ba2743051cda8a",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/42899612.blend"
+    },
+    "41159541": {
+      "file": "41159541.blend",
+      "bytes": 22013864,
+      "sha256": "937f1c555af1048a43f26de40035fd951c4092aca234da9065a7aecd5924eea4",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/41159541.blend"
+    },
+    "45261575": {
+      "file": "45261575.blend",
+      "bytes": 16639720,
+      "sha256": "8951ac03cd5058b2475dff656b506de841765e6e8fe1ed3dac253528d6d2ee81",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/45261575.blend"
+    },
+    "scene0701_00": {
+      "file": "scene0701_00.blend",
+      "bytes": 3403308,
+      "sha256": "e6224fec629905221efdc554dd5602fc860dadadd02c575630d0445a827193ad",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/scene0701_00.blend"
+    },
+    "44358436": {
+      "file": "44358436.blend",
+      "bytes": 10704932,
+      "sha256": "2d468099f02f54d3c2a0b90b94f783a7b014d9a6b033d770424c2de5c1bfba5b",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/44358436.blend"
+    },
+    "scene0462_00": {
+      "file": "scene0462_00.blend",
+      "bytes": 10770012,
+      "sha256": "90a561955a87fe72718227acaf4877032a6bb0a3916713253ad2440082a68b11",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/scene0462_00.blend"
+    },
+    "44358499": {
+      "file": "44358499.blend",
+      "bytes": 24506372,
+      "sha256": "b57c5701617708e959bd12275fc63a932bd2346dc10008b3967286f876aa0013",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/44358499.blend"
+    },
+    "42898869": {
+      "file": "42898869.blend",
+      "bytes": 31778836,
+      "sha256": "36e888f5b8c794bca7f044e19ff298861d30e062c7d5977044b56fe1a239e788",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/42898869.blend"
+    },
+    "42445026": {
+      "file": "42445026.blend",
+      "bytes": 7613848,
+      "sha256": "c848e8dd728ff27efbe61a3670428dc893a73a01852c57528294ea2b2997b002",
+      "remote_path": "mini-harness-gpt-6-astra-reasoning-xhigh-run01/blends/42445026.blend"
+    }
+  }
+}

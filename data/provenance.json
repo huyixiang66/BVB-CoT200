@@ -1,0 +1,29 @@
+{
+  "release": "bvb-cot200-single-v1",
+  "date": "2026-10-15",
+  "samples_per_question": 1,
+  "fixed_camera_questions": 125,
+  "legacy_v2_questions": 75,
+  "legacy_prompt_note": "Generated from archived v2 harness; historical calls did not save prompt hashes.",
+  "prompt_corrections": {
+    "2583": "Describe actual six frames and absent highlights; preserve counting reasoning."
+  },
+  "legacy_spec_note": "Frozen development specs include name matching and manual overrides; not held-out evidence.",
+  "source_sha256": {
+    "fixed_protocol": "f5e936622db676e7c13da00596a48657090b58bdfb6006e8494987cb18a7dadf",
+    "fixed_renderer": "7c0eff77cfaa9a0f1ed6874c8db231a6469e65ef9de266cf58f5c6f6b56c3ada",
+    "legacy_renderer": "3d1d03800c7cd728836319fea93caef35cea3543dea7eddf462c6827d5c9f7e4",
+    "legacy_harness": "43b66a607cb54caab167067873a6eb04752fbf788491f42af96f8a6ff3d3ecda",
+    "name_resolver": "1367b97c1eb106ea7e1e95b3f5cc06f078fc268dcd19a8fdb8beef1b322d6e9b",
+    "bvb_scoring": "6243b472ced26d6f895414c3604b74add46e63f786e978e06ee0de7610c9dd2e",
+    "selected_questions": "a28586241f19addeb65633ef7b5399af5cb64b14bc976d94925de6975c00ed72"
+  },
+  "files": {
+    "data/labels.jsonl": "32371903c9636bbfbfc8896870fcdb353ce0db8b5d0b3219ec1e09140a3ed5be",
+    "data/prompts.json": "e96dafcee293c934d01aef62b0ad4f0cbd71f374fa9b9c242d271c77f322722c",
+    "data/questions.jsonl": "5a695686e2c3a95449ccdd490a13a365482954b785c5bcbd2c8929440d53170d",
+    "data/recipes.json": "309375a67b9a3b08c022fbf8f4068f87909bfbc40172b512573c4cca54cd7ca4",
+    "data/scenes.json": "f9b9c04f1d751b053b669b9aba9e0f0180acd24a481aec9126162e99900ece1a",
+    "data/smoke.json": "da0616e89c5fc385fc6d17dc8222e3912420eb8208ed09c61b38ee94145bc6e9"
+  }
+}
