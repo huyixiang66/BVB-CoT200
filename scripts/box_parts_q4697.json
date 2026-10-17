@@ -1,0 +1,14 @@
+{
+  "case_id": "q4697",
+  "blend_sha256": "db90e0d9aabfe758811753de0441dc8acec4f676dded401ce23b6a1c01c61800",
+  "evidence": "runs/refine-background-task-dev-20261017/objects.json: explicit named parts and touching/nearby bounds; development case, not a general collection-to-instance rule",
+  "body": [
+    "nightstand body", "nightstand marble top", "front drawer panel", "front drawer panel.001",
+    "brass drawer knob", "brass drawer knob.001", "brass drawer knob.002", "brass drawer knob.003"
+  ],
+  "carried": [
+    "bedside alarm clock", "clock face", "lamp finial", "lamp foot", "lamp stem",
+    "lampshade lower binding", "square lamp base", "tapered cream lampshade",
+    "top stem", "urn shaped lamp body"
+  ]
+}

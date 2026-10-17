@@ -10,7 +10,7 @@ import refinement as r
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("doctor", "prepare", "inspect", "retrieve", "candidates",
+    parser.add_argument("command", choices=("doctor", "resolve", "prepare", "inspect", "retrieve", "candidates",
                                              "select", "finalize", "answer", "report"))
     parser.add_argument("--case", type=Path, required=True, help="Case JSON; paths are relative to this file")
     parser.add_argument("--run", type=Path, required=True, help="Dedicated output directory")
@@ -31,8 +31,13 @@ def main():
         parser.error("answer requires --qa-model or OPENAI_MODEL")
     if args.command == "doctor":
         result = r.doctor(case, args.blender)
+    elif args.command == "resolve":
+        resolved = r.resolve_case_objects(case, run, args.blender)
+        result = {"case_id": resolved["case_id"], "scene": resolved["scene"],
+                  "objects": resolved["objects"], "resolution": resolved.get("object_resolution"),
+                  "candidate_ids": [candidate["id"] for candidate in resolved["candidates"]]}
     elif args.command == "prepare":
-        result = r.prepare(case, run)
+        result = r.prepare(case, run, args.blender)
     elif args.command == "inspect":
         result = r.inspect(case, run, args.blender)
     elif args.command == "retrieve":
