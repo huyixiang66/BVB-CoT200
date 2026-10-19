@@ -141,6 +141,33 @@ class CaseTests(unittest.TestCase):
                 os.environ["OPENAI_API_KEY"] = original
 
 
+class ModelClientTests(unittest.TestCase):
+    def test_model_client_reads_openai_key_from_environment(self):
+        with patch.dict(os.environ, {"OPENAI_API_KEY": "local-test-key"}, clear=True), \
+                patch.object(r, "OpenAI") as openai:
+            r.model_client("https://api.openai.com/v1", 10)
+        self.assertEqual(openai.call_args.kwargs["api_key"], "local-test-key")
+
+    def test_direct_json_call_uses_completion_budget_and_json_mode(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            image = root / "frame.jpg"
+            image.write_bytes(b"synthetic image bytes")
+            frame = {"file": str(image), "sha256": r.digest(image)}
+            response = SimpleNamespace(
+                model="gpt-test-vision",
+                choices=[SimpleNamespace(finish_reason="stop", message=SimpleNamespace(content="{}"))],
+                usage=SimpleNamespace(model_dump=lambda: {"total_tokens": 3}),
+            )
+            create = Mock(return_value=response)
+            client = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create)))
+            r.call_model(root / "run", "direct", "gpt-test-vision", "https://api.openai.com/v1",
+                         "Return JSON", [frame], 128, "low", client=client, json_mode=True)
+            request = create.call_args.kwargs
+            self.assertEqual(request["max_completion_tokens"], 128)
+            self.assertEqual(request["response_format"], {"type": "json_object"})
+
+
 class AnswerTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
@@ -304,6 +331,60 @@ class FinalizeSamplingTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "frame"):
                 r.answer(self.case, self.run, "test-model", "https://api.example.test/v1", 1, "both")
             call.assert_not_called()
+
+
+class ModelMessageTests(unittest.TestCase):
+    def test_model_receives_only_frame_identity_metadata(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            image = root / "frame.png"
+            image.write_bytes(b"synthetic image bytes")
+            frame = {
+                "file": str(image),
+                "sha256": r.digest(image),
+                "source": "reconstruction",
+                "pair_id": 2,
+                "source_frame_index_0based": 80,
+                "scene_frame": 82,
+                "seconds": 3.333,
+                "source_pose": [[1, 0, 0, 4], [0, 1, 0, 5], [0, 0, 1, 6], [0, 0, 0, 1]],
+                "bvb_camera_matrix": [[1, 0, 0, 4], [0, 1, 0, 5], [0, 0, 1, 6], [0, 0, 0, 1]],
+                "target_world_bbox": {"min_xyz": [0, 0, 0], "max_xyz": [1, 1, 1]},
+                "reference_world_bbox": {"min_xyz": [2, 2, 2], "max_xyz": [3, 3, 3]},
+                "target_projection": {"projected_bbox_xyxy": [0.1, 0.2, 0.3, 0.4]},
+                "reference_projection": {"projected_bbox_xyxy": [0.5, 0.6, 0.7, 0.8]},
+                "candidate_id": "servo_030",
+            }
+            captured = {}
+
+            class Completions:
+                def create(self, **kwargs):
+                    captured.update(kwargs)
+                    return SimpleNamespace(
+                        model="fake-model",
+                        choices=[SimpleNamespace(
+                            message=SimpleNamespace(content="{}"), finish_reason="stop")],
+                        usage=None,
+                    )
+
+            client = SimpleNamespace(chat=SimpleNamespace(completions=Completions()))
+            r.call_model(root / "run", "metadata_check", "fake-model", "https://api.example.test/v1",
+                         "Locate the target.", [frame], 100, "low", client=client)
+            texts = [part["text"] for part in captured["messages"][0]["content"]
+                     if part["type"] == "text"]
+            metadata = [text for text in texts if text.startswith("Frame metadata: ")]
+            self.assertEqual(len(metadata), 1)
+            self.assertEqual(json.loads(metadata[0].split(": ", 1)[1]), {
+                "source": "reconstruction",
+                "pair_id": 2,
+                "source_frame_index_0based": 80,
+                "scene_frame": 82,
+            })
+            message = "\n".join(texts)
+            for forbidden in ("source_pose", "bvb_camera_matrix", "target_world_bbox",
+                              "reference_world_bbox", "target_projection",
+                              "reference_projection", "candidate_id"):
+                self.assertNotIn(forbidden, message)
 
 
 class RetrievalTests(unittest.TestCase):

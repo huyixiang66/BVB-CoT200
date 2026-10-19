@@ -59,7 +59,7 @@ def visible_surface_box(objects):
                 hit, location, _, _, blocker, _ = scene.ray_cast(
                     graph, origin, direction.normalized(), distance=direction.length + .002)
                 if hit and blocker.name == obj.name and (location-point).length <= .002:
-                    visible.append((ndc.x, ndc.y))
+                    visible.append((ndc.x, 1-ndc.y))
         finally:
             evaluated.to_mesh_clear()
     projected = ([min(x for x, y in visible), min(y for x, y in visible),

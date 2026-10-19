@@ -288,3 +288,62 @@ zero newly usable pairs in an offline replay because landmark counts/distributio
 were insufficient. Synthetic tests demonstrate shared-motion removal and preserved
 target residuals, not real-world GT improvement. Use fresh run directories; do not
 rewrite old frozen hashes.
+
+## GPT 视觉目标微调：两种运行方式
+
+这两个入口从已准备好的 `case.json` 和相机配对输入开始；本仓库不包含私有视频、`.blend`、配对图片或 API 密钥。请为每次实验使用新的 `--run` 目录。两种方式都不画框、不读取 GT，也不会覆盖源 `.blend`；模型调用使用 GPT 视觉模型和 OpenAI Chat Completions 图片输入。
+
+先配置 Blender 和 GPT API。`OPENAI_MODEL` 填写你账号可用、支持图片输入和 JSON 输出的 GPT 模型 ID：
+
+```bash
+export BLENDER_BIN=/path/to/blender
+export OPENAI_API_KEY=your_key
+export OPENAI_MODEL=your_gpt_vision_model
+export OPENAI_BASE_URL=https://api.openai.com/v1
+```
+
+PowerShell 对应写法：
+
+```powershell
+$env:BLENDER_BIN = 'C:\path\to\blender.exe'
+$env:OPENAI_API_KEY = 'your_key'
+$env:OPENAI_MODEL = 'your_gpt_vision_model'
+$env:OPENAI_BASE_URL = 'https://api.openai.com/v1'
+```
+
+**方式一：GPT 直接给修正量。** 给 GPT 同一相机下的原图和 Blender 渲染图，不提供框。GPT 返回目标在画面中应移动的归一化幅度和缩放比例；例如横向 `-0.03` 表示渲染目标向左移约画面宽度的 3%。程序用相机内参和目标深度把它换算成 Blender 世界坐标的米制改动，再渲染原提议并检查训练帧及留出帧。单步缩放限制在 ±5%，平移限制在 0.15 m 内；验收失败时只保留提议副本，不改源场景。
+
+需要一个已冻结的 `case.json`、相机一致的 `pairs.json` 和一个训练视角 ID；其余配对视角作为留出检查。若使用 VGGT 对齐相机，还需传入对应的渲染配置：
+
+```bash
+python scripts/run_direct_view_refinement.py \
+  --case /path/to/case.json \
+  --pairs /path/to/pairs.json \
+  --train-pair 1 \
+  --run runs/gpt-direct-q4740-001 \
+  --blender "$BLENDER_BIN" \
+  --model "$OPENAI_MODEL" \
+  --base-url "$OPENAI_BASE_URL" \
+  --vggt-render-config /path/to/vggt-render-config.json
+```
+
+没有使用 VGGT 渲染配置时，省略最后一行；输入的 `pairs.json` 仍须保证原图和重建图来自匹配的相机视角。
+
+**方式二：程序生成候选，GPT 盲选。** Blender 固定相机和场景背景，只对目标物体生成一组小幅位移/缩放版本。GPT 看原图和随机编号的候选渲染并排序；程序汇总两个训练视角的排序，先检查是否复制了展示顺序，再用第三个独立视角比较胜出候选和“不修改”。
+
+输入 `case.json` 和通过渲染门禁、包含三个配对视角的 `alignment.json`：
+
+```bash
+python scripts/run_render_rank_refinement.py \
+  --case /path/to/case.json \
+  --alignment /path/to/alignment.json \
+  --run runs/gpt-rank-q4740-001 \
+  --blender "$BLENDER_BIN" \
+  --model "$OPENAI_MODEL" \
+  --base-url "$OPENAI_BASE_URL" \
+  --samples 16
+```
+
+候选图默认在本机 CPU 上用单线程渲染并启用降噪。也可加 `--remote-host SSH别名 --remote-blender /path/to/blender`，把渲染放到自己可访问的服务器上。两种入口都把请求、候选、渲染和验收结果保存在 `--run` 目录；换模型或改输入时使用新目录，API 中断后先检查该目录再决定是否重跑。
+
+这两条路线目前仍是实验入口。只有目标识别、相机配对和独立留出检查都通过才接受提议；现有 q4740 候选排序试验没有通过这些门槛，因此不能宣称已实现可靠微调。

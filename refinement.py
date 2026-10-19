@@ -17,6 +17,7 @@ from openai import OpenAI
 
 ROOT = Path(__file__).resolve().parent
 PAIRING_PROTOCOL = "normalized_time_pairs_v4"
+MODEL_FRAME_FIELDS = ("source", "pair_id", "source_frame_index_0based", "scene_frame")
 
 
 def read_json(path):
@@ -322,7 +323,12 @@ def encode_frame(frame, detail):
     }}
 
 
-def call_model(run, name, model, base_url, prompt, frames, max_tokens, detail, client=None, timeout=300):
+def model_frame_metadata(frame):
+    return {key: frame[key] for key in MODEL_FRAME_FIELDS if key in frame}
+
+
+def call_model(run, name, model, base_url, prompt, frames, max_tokens, detail, client=None,
+               timeout=300, json_mode=False):
     directory = Path(run) / "calls" / name
     response_path = directory / "response.json"
     request_path = directory / "request.json"
@@ -336,6 +342,7 @@ def call_model(run, name, model, base_url, prompt, frames, max_tokens, detail, c
         "max_completion_tokens": max_tokens,
         "temperature": model_temperature(model),
         "image_detail": detail,
+        "json_mode": json_mode,
     })
     if response_path.exists():
         return read_json(response_path)
@@ -344,19 +351,22 @@ def call_model(run, name, model, base_url, prompt, frames, max_tokens, detail, c
     (directory / "prompt.txt").write_text(prompt, encoding="utf-8")
     content = [{"type": "text", "text": prompt}]
     for frame in frames:
-        metadata = {key: value for key, value in frame.items() if key not in {"file", "sha256", "camera"}}
+        metadata = model_frame_metadata(frame)
         content.append({"type": "text", "text": "Frame metadata: " + json.dumps(metadata)})
         content.append(encode_frame(frame, detail))
     save_json(directory / "started.json", {"started_unix": time.time(), "pid": os.getpid()})
     start = time.monotonic()
     try:
         api = model_client(base_url, timeout, client)
-        response = api.chat.completions.create(
-            model=model,
-            messages=[{"role": "user", "content": content}],
-            max_completion_tokens=max_tokens,
-            temperature=model_temperature(model),
-        )
+        request = {
+            "model": model,
+            "messages": [{"role": "user", "content": content}],
+            "max_completion_tokens": max_tokens,
+            "temperature": model_temperature(model),
+        }
+        if json_mode:
+            request["response_format"] = {"type": "json_object"}
+        response = api.chat.completions.create(**request)
         result = {
             "requested_model": model,
             "response_model": response.model,
