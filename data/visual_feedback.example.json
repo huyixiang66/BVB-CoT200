@@ -1,0 +1,12 @@
+{
+  "case_id": "monitor-feedback",
+  "inputs": {
+    "blend": "/absolute/path/scene.blend"
+  },
+  "objects": {
+    "moving": {
+      "label": "monitor",
+      "prefixes": ["monitor base", "monitor housing", "monitor screen", "monitor stand"]
+    }
+  }
+}
