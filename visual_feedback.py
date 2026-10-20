@@ -32,6 +32,10 @@ def action_components(value):
 def validate_action(value):
     if not isinstance(value, dict):
         raise ValueError("Expected a JSON object")
+    if value.get("action") == "no_change":
+        return {"action": "no_change", "reason": value.get("reason", "")}
+    if value.get("action") == "adjust" and value.get("subject") == "target":
+        value = {**value, "rotation_local_degrees": value.get("rotation_local_degrees", [0, 0, 0])}
     if value.get("action") == "stop":
         return {"action": "stop", "reason": value.get("reason", "")}
     if value.get("action") == "adjust" and value.get("subject") == "both":

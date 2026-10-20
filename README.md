@@ -100,11 +100,50 @@ python tests/smoke_blender.py --blender /path/to/blender --scene-model luna
 
 ## GPT 双帧反馈微调
 
-当前微调流程：**原视频帧 + 当前 Blender 渲染帧 → 模型给出修正 → 修改 Blender 副本并重渲 → 将新结果输入下一轮**。每轮可以调整相机位置/朝向、目标物体位置/尺度，也可以同时调整两者。不画框，不做候选排序，不要求背景配准或置信度。GT 不参与修正。
+当前推荐流程是**多帧、共享 3D 修正**：把多组时间匹配的原视频帧和 BVB 渲染帧一起交给模型，并附上各帧的相机轨迹相对姿态；模型一次判断一个跨视角一致的修正，程序修改 Blender 场景副本、重渲全部视角，再把新结果送入下一轮。每轮可以调整整条相机轨迹、目标物体，或两者。不画框，不做候选排序，也不要求背景配准。`no_change` 只表示本轮不编辑，仍继续到 `--rounds` 上限；GT 不参与修正。
 
 使用上面的 Python 环境与 `OPENAI_API_KEY`、`OPENAI_MODEL`、`OPENAI_BASE_URL`、`BLENDER_BIN` 配置。模型需支持图片输入、JSON 输出与 Chat Completions；代码不固定服务商或模型名称。
 
 **准备输入。** 复制 `data/visual_feedback.example.json` 为自己的 `case.json`，修改 `inputs.blend` 为 `.blend` 绝对路径，修改 `objects.moving` 中的目标名称。`names` 精确匹配 Blender 网格名，`prefixes` 匹配名称前缀；同一物体的所有部件一起移动和缩放。
+
+先准备多组一一对应的原视频/BVB 帧。`scene_frame` 是 BVB `.blend` 时间线中与该渲染帧对应的帧号；原视频帧与 BVB 渲染帧须属于同一时刻。下面的 manifest 只记录路径和时间对应，不包含图片：
+
+```json
+[
+  {"pair_id": 2, "bvb_frame_index": 44, "source_frame_index_0based": 2144,
+   "scene_frame": 1717, "source_frame": "/data/source_2144.jpg",
+   "render_frame": "/data/bvb_44.png", "width": 512, "height": 512},
+  {"pair_id": 3, "bvb_frame_index": 56, "source_frame_index_0based": 2729,
+   "scene_frame": 2185, "source_frame": "/data/source_2729.jpg",
+   "render_frame": "/data/bvb_56.png", "width": 512, "height": 512},
+  {"pair_id": 5, "bvb_frame_index": 63, "source_frame_index_0based": 3070,
+   "scene_frame": 2458, "source_frame": "/data/source_3070.jpg",
+   "render_frame": "/data/bvb_63.png", "width": 512, "height": 512}
+]
+```
+
+用同一个 BVB blend 准备所有配对。最后一组的相机姿态作为固定坐标参考；准备脚本同时记录每组相机的姿态和投影参数：
+
+```bash
+"$BLENDER_BIN" --background --disable-autoexec /absolute/path/scene.blend --threads 1 \
+  --python-exit-code 1 --python scripts/prepare_visual_feedback.py -- \
+  --case /absolute/path/case.json --pairs-manifest /absolute/path/pairs.json \
+  --output runs/feedback-input-001
+```
+
+**运行多帧微调。** `--pair-ids` 按 manifest 中的 `pair_id` 选择训练视角。每轮模型看到所选所有原图/渲染图；程序对相机轨迹或目标应用一个共享 3D 修正，并重新渲染每组视角：
+
+```bash
+python scripts/run_visual_feedback.py --case runs/feedback-input-001/case.json \
+  --pairs runs/feedback-input-001/pairs.json --pair-ids 2,3,5 --run runs/feedback-001 \
+  --blender "$BLENDER_BIN" --model "$OPENAI_MODEL" --base-url "$OPENAI_BASE_URL" --rounds 5
+```
+
+模型动作中的平移使用固定参考相机的 +X 右、+Y 上、+Z 后退坐标，单位为 Blender 场景单位；相机修正作用于整条动画轨迹，目标修正作用于目标网格组。平移步长和缩放范围由程序校验。`--rounds` 为 1–5 次判断，默认 2；`no_change` 轮不渲染，但会继续下一次判断。每轮只从上一轮的场景副本继续；原 `.blend` 不覆盖。输出的 `edit_XX/render_pair_<id>.png` 是对应视角的更新渲染。
+
+多帧模式要求 BVB 场景有可采样的活动相机；相机动画必须是无父级/约束、无 NLA/driver 的普通关键帧动画，目标网格不能带动画或约束。初始帧配对质量由用户提供的 manifest 决定；模型不会自动搜索对应帧。
+
+**单帧兼容流程。** 只有一组配对时仍可用已有方式，使用 Blender 当前活动相机准备一个渲染帧，再运行 `--pair-id`：
 
 选好一张原视频帧，使用 Blender 当前相机在对应场景状态生成初始渲染及可运行配置：
 
@@ -117,7 +156,7 @@ python tests/smoke_blender.py --blender /path/to/blender --scene-model luna
 
 `--scene-frame` 是 Blender 时间线帧号，不是原视频帧号；请使用对应的场景状态。准备阶段沿用该时刻的活动透视相机，不自动恢复原视频相机。如果已有调整更准的相机场景，可直接以该副本准备输入。`--case` 中的 blend 路径须与命令加载的文件一致。准备过程不调用模型，输出 `case.json`、`pairs.json`、`scene.blend` 和 `render.png`。
 
-**运行五轮。** 每轮使用上一轮修正后的场景和渲染帧，原视频参考帧保持不变：
+每轮使用上一轮修正后的场景和渲染帧，原视频参考帧保持不变：
 
 ```bash
 python scripts/run_visual_feedback.py --case runs/feedback-input-001/case.json \
@@ -125,7 +164,7 @@ python scripts/run_visual_feedback.py --case runs/feedback-input-001/case.json \
   --blender "$BLENDER_BIN" --model "$OPENAI_MODEL" --base-url "$OPENAI_BASE_URL" --rounds 5
 ```
 
-`--rounds` 为 1–5，默认 2；模型判断无需修改或不能判断时会提前停止。每次准备或运行都使用新的输出目录。已有 `case.json` 和 `pairs.json` 的用户可跳过准备阶段，并使用其中的 `pair_id`。
+`--rounds` 为 1–5，默认 2；单帧模式下模型可用 `stop` 提前结束。每次准备或运行都使用新的输出目录。已有 `case.json` 和 `pairs.json` 的用户可跳过准备阶段，并使用其中的 `pair_id`。
 
 模型可返回 `subject=camera`、`target` 或 `both`。例如，同一轮联合修正：
 
@@ -147,7 +186,7 @@ python scripts/run_visual_feedback.py --case runs/feedback-input-001/case.json \
 
 两者都使用**本轮修改前**的相机局部坐标：+X 画面右、+Y 上、+Z 后退。平移是 Blender 单位，不能直接称厘米。相机每轮平移长度不超过 0.5、各轴旋转不超过 8°；目标平移长度不超过 0.25、统一缩放为 0.8–1.25，围绕底部中心缩放。固定参照物和其他场景物体保持不变。
 
-每轮结果在 `edit_01/` 等目录，包含 `scene.blend`、`render.png`、`spec.json`、`state.json` 与日志。`result.json` 给出最终场景、当前配对、实际执行轮数和停止原因；`calls/` 保存请求及响应。源 `.blend` 不覆盖，Blender 使用 CPU 单线程。需要继续时，把最终场景作为新的 `case.inputs.blend`，再准备输入并使用新的运行目录。
+每轮结果在 `edit_01/` 等目录。多帧模式包含 `scene.blend`、每个视角的 `render_pair_<id>.png`、`spec.json`、`state.json` 与日志；单帧模式使用 `render.png`。`result.json` 记录最终场景、配对、各轮动作与应用状态；`calls/` 保存请求及响应。源 `.blend` 不覆盖，Blender 使用 CPU 单线程。需要继续时，把最终场景作为新的 `case.inputs.blend`，再准备输入并使用新的运行目录。
 
 离线检查（不请求模型，也不读取图片像素）：
 
@@ -155,6 +194,8 @@ python scripts/run_visual_feedback.py --case runs/feedback-input-001/case.json \
 python -m unittest tests.test_visual_feedback
 "$BLENDER_BIN" --background --factory-startup --threads 1 --python-exit-code 1 \
   --python tests/blender_visual_feedback_checks.py
+"$BLENDER_BIN" --background --factory-startup --threads 1 --python-exit-code 1 \
+  --python tests/blender_multiview_feedback_checks.py
 ```
 
 旧的直接修正候选与候选排序入口已撤下；历史版本保留在 Git 提交记录中。其他微调辅助模块仅供兼容已有代码，当前运行方法以本节为准。
