@@ -202,9 +202,20 @@ python -m unittest tests.test_visual_feedback
 
 ## 包络视角选择
 
-独立的几何选视角工具：给定 BVB `.blend`、题目 spec 和物体分组，按目标联合包络采样相机，用视锥和遮挡射线选最少视角，再渲染。选视角阶段不读像素，不进入 200 题主协议。
+独立的几何选视角工具：给定 BVB `.blend` 和题目，按目标联合包络采样相机，用视锥和遮挡射线选最少视角，再渲染。选视角阶段不读像素，不进入 200 题主协议。
+
+可以从 `questions.jsonl` + `recipes.json` 自动生成题目目标和物体分组；也保留人工 `spec.json` + `object_groups.json` 入口。自动模式覆盖 6 类静态空间题，appearance order 和 route planning 会跳过并记录。
 
 ```bash
+# 自动输入
+"$BLENDER_BIN" --background --disable-autoexec /path/to/scene.blend --threads 2 \
+  --python-exit-code 1 --python scripts/envelope_views.py -- \
+  --questions data/questions.jsonl \
+  --recipes data/recipes.json \
+  --qa 1723 \
+  --out runs/envelope_views/geometry_1723.json
+
+# 或使用人工确认过的单场景输入
 "$BLENDER_BIN" --background --disable-autoexec /path/to/scene.blend --threads 2 \
   --python-exit-code 1 --python scripts/envelope_views.py -- \
   --spec data/envelope_views/0d2ee665be/spec.json \

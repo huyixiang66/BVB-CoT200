@@ -4,8 +4,9 @@ The script never reads pixels. It samples a camera sphere around the union
 envelope of each question's target objects, tests frustum visibility and
 first-hit occlusion, and greedily finds the smallest readable view set.
 
-Inputs are a question spec JSON and an object-groups JSON. The scene itself is
-opened by Blender before this script runs.
+Inputs are either questions.jsonl + recipes.json (automatic grounding) or a
+question spec JSON + object-groups JSON (manual correction). The scene itself
+is opened by Blender before this script runs.
 """
 
 import json
@@ -21,6 +22,8 @@ from mathutils import Vector
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
+if str(HERE) not in sys.path:
+    sys.path.insert(0, str(HERE))
 
 
 def cli_arg(name, default=None):
@@ -35,15 +38,11 @@ def cli_arg(name, default=None):
 
 
 SCENE = cli_arg("--scene", "")
-SPEC_PATH = Path(cli_arg(
-    "--spec", str(ROOT / "data" / "envelope_views" / "0d2ee665be" / "spec.json")))
-GROUPS_PATH = Path(cli_arg(
-    "--groups", str(ROOT / "data" / "envelope_views" / "0d2ee665be" / "object_groups.json")))
+QUESTIONS_PATH = cli_arg("--questions", "")
+RECIPES_PATH = cli_arg("--recipes", "")
+SCENE_MODEL = cli_arg("--scene-model", "astra")
 QA_FILTER = set((cli_arg("--qa", "") or "").split(",")) - {""}
 OUT_TAG = "_" + "_".join(sorted(QA_FILTER)) if QA_FILTER else ""
-OUT_PATH = Path(cli_arg(
-    "--out", str(ROOT / "runs" / "envelope_views" / f"geometry{OUT_TAG}.json")))
-SUMMARY_PATH = Path(cli_arg("--summary", str(OUT_PATH.with_suffix(".md"))))
 
 FULL_AZIMUTHS = range(0, 360, 45)
 FULL_ELEVATIONS = (20, 40, 60)
@@ -165,9 +164,48 @@ def edge_margin(points):
     return min(min(x, 1.0 - x, y, 1.0 - y) for x, y in points)
 
 
-spec = load_json(SPEC_PATH)
-group_data = load_json(GROUPS_PATH)
-scene_name = SCENE or spec.get("scene") or Path(bpy.data.filepath).stem
+if bool(QUESTIONS_PATH) != bool(RECIPES_PATH):
+    raise RuntimeError("--questions and --recipes must be provided together")
+
+auto_input = bool(QUESTIONS_PATH)
+input_resolution = None
+if auto_input:
+    from envelope_inputs import build_spec_and_groups
+
+    scene_name = SCENE or Path(bpy.data.filepath).stem
+    if not scene_name:
+        raise RuntimeError("Cannot determine scene name; pass --scene")
+    all_meshes = [obj for obj in bpy.data.objects if obj.type == "MESH"]
+    spec, group_data, input_resolution = build_spec_and_groups(
+        all_meshes, QUESTIONS_PATH, RECIPES_PATH, scene_name,
+        QA_FILTER, SCENE_MODEL)
+    if not spec["questions"]:
+        raise RuntimeError(
+            "No supported questions resolved for scene %s%s" % (
+                scene_name, " and --qa filter" if QA_FILTER else ""))
+    input_dir = Path(cli_arg(
+        "--input-dir", str(ROOT / "runs" / "envelope_views" / scene_name)))
+    input_dir.mkdir(parents=True, exist_ok=True)
+    (input_dir / "spec.json").write_text(
+        json.dumps(spec, ensure_ascii=False, indent=2), encoding="utf-8")
+    (input_dir / "object_groups.json").write_text(
+        json.dumps(group_data, ensure_ascii=False, indent=2), encoding="utf-8")
+    (input_dir / "resolution.json").write_text(
+        json.dumps(input_resolution, ensure_ascii=False, indent=2), encoding="utf-8")
+    default_out = input_dir / ("geometry%s.json" % OUT_TAG)
+else:
+    spec_path = Path(cli_arg(
+        "--spec", str(ROOT / "data" / "envelope_views" / "0d2ee665be" / "spec.json")))
+    groups_path = Path(cli_arg(
+        "--groups",
+        str(ROOT / "data" / "envelope_views" / "0d2ee665be" / "object_groups.json")))
+    spec = load_json(spec_path)
+    group_data = load_json(groups_path)
+    scene_name = SCENE or spec.get("scene") or Path(bpy.data.filepath).stem
+    default_out = ROOT / "runs" / "envelope_views" / ("geometry%s.json" % OUT_TAG)
+
+OUT_PATH = Path(cli_arg("--out", str(default_out)))
+SUMMARY_PATH = Path(cli_arg("--summary", str(OUT_PATH.with_suffix(".md"))))
 scene = bpy.context.scene
 scene.render.resolution_x = scene.render.resolution_y = 512
 scene.render.resolution_percentage = 100
@@ -189,9 +227,10 @@ for semantic, instances in group_data["groups"].items():
 if missing:
     raise RuntimeError("Unresolved object names: %s" % sorted(set(missing)))
 
-room_objects = {}
-for role, names in group_data["room"].items():
-    room_objects[role] = []
+room_objects = {"floor": [], "ceiling": []}
+for role, names in group_data.get("room", {}).items():
+    if role not in room_objects:
+        continue
     for name in names:
         obj = objects_by_name.get(name)
         if obj is None:
@@ -202,15 +241,63 @@ if missing:
     raise RuntimeError("Unresolved room object names: %s" % sorted(set(missing)))
 
 
-floor_box = bbox_of(room_objects["floor"])
-ceiling_box = bbox_of(room_objects["ceiling"])
-room_bounds = {
-    "min": [floor_box["min"][0] + 0.18, floor_box["min"][1] + 0.18, floor_box["max"][2] + 0.35],
-    "max": [floor_box["max"][0] - 0.18, floor_box["max"][1] - 0.18, ceiling_box["min"][2] - 0.12],
-}
-room_center = bbox_center(floor_box)
-room_dims = bbox_dims(floor_box)
-top_z = ceiling_box["max"][2] + 0.7
+scene_box = bbox_of(list(objects_by_name.values()))
+all_floor_names = [obj.name for obj in room_objects["floor"]]
+all_ceiling_names = [obj.name for obj in room_objects["ceiling"]]
+all_floor_box = (bbox_of(room_objects["floor"]) if room_objects["floor"] else scene_box)
+all_ceiling_box = (bbox_of(room_objects["ceiling"])
+                   if room_objects["ceiling"] else None)
+
+
+def room_context(question, semantic_boxes):
+    selected = question.get("room") or {}
+    floor_names = selected.get("floor") or all_floor_names
+    ceiling_names = selected.get("ceiling") or all_ceiling_names
+    floor_objects = [objects_by_name[name] for name in floor_names]
+    ceiling_objects = [objects_by_name[name] for name in ceiling_names]
+
+    floor_box = bbox_of(floor_objects) if floor_objects else all_floor_box
+    target_boxes = [box for boxes in semantic_boxes.values() for box in boxes]
+    target_envelope = union_bbox(target_boxes) if target_boxes else floor_box
+    floor_top = floor_box["max"][2]
+
+    if ceiling_objects:
+        ceiling_box = bbox_of(ceiling_objects)
+    else:
+        ceiling_floor = max(floor_top + 2.8, scene_box["max"][2] - 0.7)
+        ceiling_box = {
+            "min": [floor_box["min"][0], floor_box["min"][1], ceiling_floor],
+            "max": [floor_box["max"][0], floor_box["max"][1],
+                    max(ceiling_floor + 0.5, scene_box["max"][2] + 0.5)],
+        }
+
+    low_z = floor_top + 0.35
+    high_z = max(low_z + 0.5, ceiling_box["min"][2] - 0.12)
+    if target_boxes:
+        high_z = max(high_z, target_envelope["max"][2] + 0.3)
+    room_bounds = {
+        "min": [
+            floor_box["min"][0] + 0.18,
+            floor_box["min"][1] + 0.18,
+            low_z,
+        ],
+        "max": [
+            floor_box["max"][0] - 0.18,
+            floor_box["max"][1] - 0.18,
+            high_z,
+        ],
+    }
+    return {
+        "floor_objects": floor_names,
+        "ceiling_objects": ceiling_names,
+        "floor_box": floor_box,
+        "ceiling_box": ceiling_box,
+        "bounds": room_bounds,
+        "center": bbox_center(floor_box),
+        "dims": bbox_dims(floor_box),
+        "top_z": max(high_z + 0.7, ceiling_box["max"][2] + 0.7),
+        "selection": selected.get("selection", "file_input"),
+    }
 
 # The ceiling is never a useful occluder for a room-scale spatial question.
 ceiling_hidden = []
@@ -339,7 +426,7 @@ def make_candidate(candidate_id, method, location, target, ortho_scale=None, met
     }
 
 
-def sphere_candidates(prefix, envelope, azimuths, elevations, include_top=True):
+def sphere_candidates(prefix, envelope, azimuths, elevations, room, include_top=True):
     center = bbox_center(envelope)
     dims = bbox_dims(envelope)
     radius = max(0.22, bbox_radius(envelope))
@@ -348,7 +435,7 @@ def sphere_candidates(prefix, envelope, azimuths, elevations, include_top=True):
         top_scale = max(0.45, max(dims[0], dims[1]) * 1.35)
         candidates.append(make_candidate(
             f"{prefix}_overhead", "target_overhead",
-            (center.x, center.y, top_z), center, top_scale,
+            (center.x, center.y, room["top_z"]), center, top_scale,
             {"envelope_radius_m": radius}))
     seen = {(tuple(round(value, 3) for value in item["location"]),
              tuple(round(value, 3) for value in item["target"]))
@@ -364,7 +451,7 @@ def sphere_candidates(prefix, envelope, azimuths, elevations, include_top=True):
                     distance * math.cos(elevation_rad) * math.sin(azimuth_rad),
                     distance * math.sin(elevation_rad),
                 ))
-                location = clamp_to_room(ideal, room_bounds)
+                location = clamp_to_room(ideal, room["bounds"])
                 if (location - center).length < 0.3:
                     continue
                 key = (tuple(round(value, 3) for value in location),
@@ -384,20 +471,20 @@ def sphere_candidates(prefix, envelope, azimuths, elevations, include_top=True):
     return candidates, radius
 
 
-def question_candidates(question, semantic_boxes):
+def question_candidates(question, semantic_boxes, room):
     if semantic_boxes:
         envelope = union_bbox([box for boxes in semantic_boxes.values() for box in boxes])
     else:
-        envelope = floor_box
+        envelope = room["floor_box"]
     candidates, radius = sphere_candidates(
-        "env_full", envelope, FULL_AZIMUTHS, FULL_ELEVATIONS)
+        "env_full", envelope, FULL_AZIMUTHS, FULL_ELEVATIONS, room)
 
     if question["question_type"] in {"object_counting", "room_size_estimation"}:
         candidates.append(make_candidate(
             "overhead_room", "room_overhead",
-            (room_center.x, room_center.y, top_z), room_center,
-            max(room_dims[0], room_dims[1]) * 1.08,
-            {"room_span_m": max(room_dims[0], room_dims[1])}))
+            (room["center"].x, room["center"].y, room["top_z"]), room["center"],
+            max(room["dims"][0], room["dims"][1]) * 1.08,
+            {"room_span_m": max(room["dims"][0], room["dims"][1])}))
 
     if question["question_type"] == "room_size_estimation":
         return candidates, envelope, radius
@@ -408,7 +495,7 @@ def question_candidates(question, semantic_boxes):
     for semantic, boxes in semantic_boxes.items():
         target_candidates, _ = sphere_candidates(
             "env_" + semantic.replace(" ", "_"), union_bbox(boxes),
-            TARGET_AZIMUTHS, TARGET_ELEVATIONS)
+            TARGET_AZIMUTHS, TARGET_ELEVATIONS, room)
         for candidate in target_candidates:
             key = (tuple(round(value, 3) for value in candidate["location"]),
                    tuple(round(value, 3) for value in candidate["target"]))
@@ -420,7 +507,7 @@ def question_candidates(question, semantic_boxes):
             for index, box in enumerate(boxes):
                 instance_candidates, _ = sphere_candidates(
                     f"env_{semantic.replace(' ', '_')}_{index}", box,
-                    TARGET_AZIMUTHS, TARGET_ELEVATIONS)
+                    TARGET_AZIMUTHS, TARGET_ELEVATIONS, room)
                 for candidate in instance_candidates:
                     key = (tuple(round(value, 3) for value in candidate["location"]),
                            tuple(round(value, 3) for value in candidate["target"]))
@@ -540,7 +627,8 @@ for question in spec["questions"]:
             semantic: [bbox_of(objects) for objects in semantic_objects[semantic]]
             for semantic in semantics
         }
-    candidates, envelope, radius = question_candidates(question, semantic_boxes)
+    room = room_context(question, semantic_boxes)
+    candidates, envelope, radius = question_candidates(question, semantic_boxes, room)
     requirements = {
         semantic: requirement_for(question["question_type"], semantic,
                                   len(semantic_objects[semantic]))
@@ -573,6 +661,14 @@ for question in spec["questions"]:
         "question_type": question["question_type"],
         "question": question["question"],
         "targets": semantics,
+        "room": {
+            "floor_objects": room["floor_objects"],
+            "ceiling_objects": room["ceiling_objects"],
+            "floor_bbox": room["floor_box"],
+            "ceiling_bbox": room["ceiling_box"],
+            "camera_bounds": room["bounds"],
+            "selection": room["selection"],
+        },
         "object_instances": {semantic: len(semantic_objects[semantic]) for semantic in semantics},
         "envelope": envelope if semantic_boxes else None,
         "envelope_radius_m": radius if semantic_boxes else None,
@@ -649,14 +745,13 @@ payload = {
         "distance_factors": list(DISTANCE_FACTORS),
     },
     "room": {
-        "floor_bbox": floor_box,
-        "ceiling_bbox": ceiling_box,
-        "camera_bounds": room_bounds,
-        "top_z": top_z,
-        "floor_dims_m": room_dims,
-        "ceiling_objects": [obj.name for obj in room_objects["ceiling"]],
+        "floor_objects": all_floor_names,
+        "ceiling_objects": all_ceiling_names,
+        "floor_bbox": all_floor_box,
+        "ceiling_bbox": all_ceiling_box,
         "ceiling_hidden_for_rays": ceiling_hidden,
     },
+    "input_resolution": input_resolution,
     "object_groups": {
         semantic: {"instances": len(instances), "objects": [obj.name for obj in sum(instances, [])]}
         for semantic, instances in semantic_objects.items()
