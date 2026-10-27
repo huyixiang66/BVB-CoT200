@@ -199,3 +199,17 @@ python -m unittest tests.test_visual_feedback
 ```
 
 旧的直接修正候选与候选排序入口已撤下；历史版本保留在 Git 提交记录中。其他微调辅助模块仅供兼容已有代码，当前运行方法以本节为准。
+
+## 包络视角选择
+
+独立的几何选视角工具：给定 BVB `.blend`、题目 spec 和物体分组，按目标联合包络采样相机，用视锥和遮挡射线选最少视角，再渲染。选视角阶段不读像素，不进入 200 题主协议。
+
+```bash
+"$BLENDER_BIN" --background --disable-autoexec /path/to/scene.blend --threads 2 \
+  --python-exit-code 1 --python scripts/envelope_views.py -- \
+  --spec data/envelope_views/0d2ee665be/spec.json \
+  --groups data/envelope_views/0d2ee665be/object_groups.json \
+  --out runs/envelope_views/geometry.json
+```
+
+示例输入、输出字段和当前限制见 [`docs/envelope-view-selection.md`](docs/envelope-view-selection.md)。
