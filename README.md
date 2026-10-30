@@ -1,5 +1,9 @@
 # BVB-CoT200：Blender 场景 → 八类 CoT → 单次答案
 
+## 纯几何选视角（实验入口）
+
+仓库提供单题 Blender 几何选位脚本：输入 `.blend`、来源视频和题目 JSON，输出选中的相机位姿及 Blender 渲染图。运行时不调用 AI。当前版本只用 `.blend` 几何和题目；视频只记录在结果来源信息中，不参与选位。题目 JSON 需要显式提供题型及 Blender 网格名映射。详见 [几何选视角说明](docs/geometry-only-view-selector.md)。
+
 从已有 **BVB Astra / Luna xhigh `.blend`** 出发，运行固定的 200 道 VSI-Bench 问题（八类各 25 题、126 个场景）。场景来源与 QA 模型独立选择，**每题只请求一次，不做三次采样或投票。**
 
 仓库包含代码、题目/评分标签、冻结的渲染配置与逐题 prompt；不包含 blend、原视频、渲染图片、API key 或历史实验目录。不是从视频重建场景；主 200 题协议不包含 debate 或场景微调。

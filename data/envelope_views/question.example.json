@@ -1,0 +1,35 @@
+{
+  "scene": "my_blender_scene",
+  "qa_id": "example-001",
+  "question_type": "object_rel_distance",
+  "question": "Which is closer to the chair, the bed or the desk?",
+  "roles": {
+    "reference": ["chair"],
+    "choices": ["bed", "desk"]
+  },
+  "targets": [
+    {
+      "term": "chair",
+      "instances": [
+        ["chair seat", "chair back", "chair legs"]
+      ]
+    },
+    {
+      "term": "bed",
+      "instances": [
+        ["bed frame", "mattress"]
+      ]
+    },
+    {
+      "term": "desk",
+      "instances": [
+        ["desk top", "desk leg 1", "desk leg 2"]
+      ]
+    }
+  ],
+  "room": {
+    "floor": ["room floor"],
+    "ceiling": ["room ceiling"],
+    "walls": ["north wall", "west wall"]
+  }
+}
