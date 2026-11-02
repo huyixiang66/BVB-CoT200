@@ -12,9 +12,10 @@ if site:
     sys.path.append(site)
 from scipy.optimize import minimize
 from position_fit import from_position
+from acceptance import assess_view
 
 
-def solve_standing(g, q, all_items, finish, safe_location, standing_free):
+def solve_standing(g, q, all_items, finish, safe_location, standing_free, diagnostics=None):
     roles = q['roles']
     stand = next(i for i in all_items if i['semantic'] == roles['standing'][0])
     facing = next(i for i in all_items if i['semantic'] == roles['facing'][0])
@@ -31,10 +32,11 @@ def solve_standing(g, q, all_items, finish, safe_location, standing_free):
                    ((box['max'][i]-box['min'][i])/2+.45))) for i in (0,1)]
               for direction in (heading,(-heading[1],heading[0],0),(-heading[0],-heading[1],0))]
     best = None
+    best_failed = None
     evaluations = 0
 
     def objective(x):
-        nonlocal best, evaluations
+        nonlocal best, best_failed, evaluations
         evaluations += 1
         loc = [float(x[0]),float(x[1]),floor_z+1.55]
         nearest = [max(box['min'][i],min(box['max'][i],loc[i])) for i in (0,1)]
@@ -51,17 +53,29 @@ def solve_standing(g, q, all_items, finish, safe_location, standing_free):
             return 100.
         cam.update(id='standing_continuous',method='continuous_standing_reference',ortho_scale=None)
         finish(cam,[facing,query],all_items,'standing_reference')
-        cam['metadata'].update(standing_distance=dist, frame_keys=[],
+        cam['joint_acceptance'] = cam['acceptance']
+        cam['acceptance'] = assess_view(cam, [facing], min_area=g.MIN_AREA,
+                                        min_visible=g.MIN_VISIBLE)
+        cam['metadata'].update(standing_distance=dist, frame_keys=[facing['key']],
+            evidence_scope='standing_orientation_reference',
             projection_check_keys=[facing['key'],query['key']],
             heading_deviation_deg=math.degrees(math.acos(max(-1.,min(1.,g.dot(current,heading))))))
         fm=cam['instance_metrics'][facing['key']]; qm=cam['instance_metrics'][query['key']]
         loss=3*(1-fm['visible_fraction'])+2*(1-qm['visible_fraction'])
-        if best is None or loss < best[0]:
-            best=(loss,cam)
-        return loss
+        gate = cam['acceptance']
+        if gate['passed']:
+            if best is None or loss < best[0]:
+                best=(loss,cam)
+        elif best_failed is None or (gate['violation'], loss) < best_failed[:2]:
+            best_failed=(gate['violation'],loss,cam)
+        return loss + 20.*gate['violation']
 
     for start in starts:
         minimize(objective,start,method='Powell',bounds=bounds,options={'maxfev':120,'xtol':.02,'ftol':.01})
+    if best:
+        best[1]['metadata'].update(optimizer='Powell', evaluations=evaluations, loss=best[0])
+    elif best_failed is not None and diagnostics is not None:
+        diagnostics.append(best_failed[2])
     return (best[1] if best else None), evaluations
 
 
@@ -74,16 +88,33 @@ def solve(g, required, all_items, boxes, role, pairs, prefix, finish, safe_locat
     bounds += [(floor['max'][2]+.25, floor['max'][2]+min(5., 2*g.room_span-.05))]
     bounds += [(-.25*spans[i], .25*spans[i]) for i in (0, 1)]
     center = [(lo+hi)/2 for lo,hi in bounds[:2]]
-    corner0 = [bounds[i][0] if target_center[i] > center[i] else bounds[i][1] for i in (0,1)]
-    corner1 = [corner0[0], bounds[1][1] if corner0[1] == bounds[1][0] else bounds[1][0]]
     height = min(bounds[2][1], max(bounds[2][0], floor['max'][2]+2.2))
-    starts = [corner0+[height,0.,0.], corner1+[height,0.,0.], center+[height,0.,0.]]
+    # Analytic framing gives two task-derived initial poses. Powell may move
+    # freely afterwards; these are not a finite output camera catalogue.
+    azimuth = 90. if spans[0]>=spans[1] else 0.
+    for a,b in pairs:
+        first=next((i for i in required if i['semantic']==a),None)
+        second=next((i for i in required if i['semantic']==b),None)
+        if first and second:
+            ca,cb=g.center(first['box']),g.center(second['box'])
+            if math.hypot(cb[0]-ca[0],cb[1]-ca[1])>1e-8:
+                azimuth=math.degrees(math.atan2(cb[1]-ca[1],cb[0]-ca[0]))+90.
+                break
+    starts=[]
+    for angle in (azimuth,azimuth+180.):
+        fitted=g.fit_camera(boxes,angle,35.,margin=.07,lens_mm=35.)
+        location=[max(bounds[i][0],min(bounds[i][1],fitted['location'][i])) for i in range(3)]
+        starts.append(location+[0.,0.])
+    starts.append(center+[height,0.,0.])
     best = None
+    best_failed = None
+    start_best = None
+    solutions = []
     evaluations = 0
     valid = 0
 
     def objective(x):
-        nonlocal best, evaluations, valid
+        nonlocal best, best_failed, start_best, evaluations, valid
         evaluations += 1
         location = [float(v) for v in x[:3]]
         target = [target_center[0]+float(x[3]), target_center[1]+float(x[4]), target_center[2]]
@@ -136,25 +167,49 @@ def solve(g, required, all_items, boxes, role, pairs, prefix, finish, safe_locat
         loss = (4.*(1.-min(visible, default=0.))
                 + 3.*(1.-min(1., min(pixel_proxy, default=0.)/.003))
                 + 1.5*(1.-separation) + .6*overlap + context_penalty)
+        # A preference, not a hard tilt: overhead and lower views may win.
+        elevation = math.degrees(math.asin(max(-1., min(1., -camera['forward'][2]))))
+        loss += .5 * (1.-max(0., 1.-abs(elevation-35.)/55.))
         if role == 'single_size_context':
             dimensions = [required[0]['box']['max'][i]-required[0]['box']['min'][i] for i in range(3)]
             axis = max(range(3),key=lambda i: dimensions[i])
             axis_retention = math.sqrt(max(0., 1.-camera['forward'][axis]**2))
             loss += 5.*(1.-min(1., pixel_proxy[0]/.08)) + 2.*(1.-axis_retention)
         valid += 1
-        if best is None or loss < best[0]:
-            best = (loss, camera)
-        return loss
+        gate = camera['acceptance']
+        if gate['passed']:
+            if best is None or loss < best[0]:
+                best = (loss, camera)
+            if start_best is None or loss < start_best[0]:
+                start_best = (loss, camera)
+        elif best_failed is None or (gate['violation'], loss) < best_failed[:2]:
+            best_failed = (gate['violation'], loss, camera)
+        return loss + 20.*gate['violation']
 
     for start in starts:
+        start_best = None
         minimize(objective, start, method='Powell', bounds=bounds,
                  options={'maxfev': 180, 'xtol': .025, 'ftol': .01})
+        if start_best is not None:
+            solutions.append(start_best)
     if best is None:
-        return None, []
+        if best_failed is not None:
+            best_failed[2]['metadata'].update(optimizer='Powell', evaluations=evaluations,
+                                              rejection='no geometry-accepted solution')
+        return None, [best_failed[2]] if best_failed is not None else []
     camera = best[1]
     camera['metadata'].update(optimizer='Powell', loss=best[0],
         evaluations=evaluations, valid_evaluations=valid, starts=len(starts),
         pixel_proxy='AABB area times visible-surface sample fraction; not silhouette',
         distractor_proxy='maximum projected AABB overlap with same-semantic instances',
         previous_views=len(prior_views))
-    return camera, [camera]
+    accepted = []
+    seen = set()
+    for loss, solution in sorted(solutions, key=lambda item: item[0]):
+        key = tuple(round(v, 4) for v in solution['location']+solution['target'])
+        if key not in seen:
+            seen.add(key)
+            solution['metadata'].update(optimizer='Powell', loss=loss,
+                                        evaluations=evaluations)
+            accepted.append(solution)
+    return camera, accepted

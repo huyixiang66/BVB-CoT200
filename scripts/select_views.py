@@ -23,6 +23,7 @@ SUPPORTED_TYPES = {
 ROLE_FIELDS = {
     "object_abs_distance": ("endpoints",),
     "object_rel_distance": ("anchor", "candidates"),
+    "object_size_estimation": ("target",),
     "object_rel_direction_easy": ("standing", "facing", "query"),
     "object_rel_direction_medium": ("standing", "facing", "query"),
     "object_rel_direction_hard": ("standing", "facing", "query"),
@@ -43,6 +44,8 @@ def parse_args(argv=None):
                         help="Blender executable (defaults to BLENDER_BIN).")
     parser.add_argument("--resolution", type=int, default=512,
                         help="Square render resolution (default: 512).")
+    parser.add_argument('--render-diagnostics', action='store_true',
+                        help='Also render rejected attempts separately for inspection.')
     return parser.parse_args(argv)
 
 
@@ -84,7 +87,7 @@ def load_question(path):
     for field in ROLE_FIELDS.get(question_type, ()):
         if not roles.get(field):
             raise ValueError("roles.%s is required for %s" % (field, question_type))
-    expected_counts = {"endpoints": 2, "anchor": 1, "standing": 1,
+    expected_counts = {"endpoints": 2, "anchor": 1, "standing": 1, "target": 1,
                        "facing": 1, "query": 1}
     for field in ROLE_FIELDS.get(question_type, ()):
         value = roles[field]
@@ -161,10 +164,12 @@ def main(argv=None):
         "--scene", spec["scene"], "--spec", spec_path, "--groups", groups_path,
         "--out", geometry_path,
     ])
-    run_blender(args.blender, args.blend, ROOT / "scripts" / "direct_views" / "render_selected.py", [
+    render_args = [
         "--geometry", geometry_path, "--groups", groups_path, "--out-root", render_root,
         "--manifest", render_manifest, "--res", args.resolution, "--scene", spec["scene"],
-    ])
+    ]
+    if args.render_diagnostics: render_args.append('--render-diagnostics')
+    run_blender(args.blender, args.blend, ROOT / "scripts" / "direct_views" / "render_selected.py", render_args)
     for path in (geometry_path, render_manifest):
         attach_provenance(path, args.video, args.question)
     result = json.loads(geometry_path.read_text(encoding="utf-8"))
@@ -172,9 +177,10 @@ def main(argv=None):
              "Continuous geometry optimization; no AI or video pixels used.", ""]
     for item in result.get("questions", []):
         ids = ", ".join(view.get("id", "") for view in item.get("chosen_readable", []))
-        lines.append("- %s (%s): %s view(s): %s" % (
+        lines.append("- %s (%s): %s accepted view(s): %s; status=%s; qa_ready=%s" % (
             item.get("qa_id", ""), item.get("question_type", ""),
-            len(item.get("chosen_readable", [])), ids))
+            len(item.get("chosen_readable", [])), ids,
+            item['selection_status'], item['qa_ready']))
     summary_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print("SELECT_VIEWS_OK", geometry_path)
     print("RENDERS", render_root)

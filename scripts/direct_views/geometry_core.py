@@ -15,6 +15,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from fit_camera import bbox_corners, basis, center, fit_camera, project as pinhole_project, union_box
 from fit_camera import viewing_ray
+from acceptance import MIN_SHORT_SIDE
 
 
 def cli_arg(name, default=None):
@@ -189,6 +190,8 @@ def evaluate(camera, items):
         fraction = visible/SAMPLES
         metrics[item['key']] = {'visible_fraction': fraction, 'area_fraction': area,
             'edge_margin': margin, 'projected_box': bounds,
-            'readable': positive and margin >= MARGIN-1e-5 and area >= MIN_AREA and fraction >= MIN_VISIBLE,
+            'readable': (positive and margin >= MARGIN-1e-5 and area >= MIN_AREA
+                         and fraction >= MIN_VISIBLE
+                         and min(bounds[2]-bounds[0], bounds[3]-bounds[1]) >= MIN_SHORT_SIDE),
             'top_blockers': dict(blockers.most_common(3))}
     return metrics

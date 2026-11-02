@@ -1,9 +1,7 @@
-"""Migrated clear-context selector for the two long VSI scenes.
+"""Continuous camera solving with shared geometry acceptance and relation groups.
 
-Relationship groups, shared-anchor comparisons, standing neighbourhoods and
-size context come from the 32-question clear-context selector. Repeated
-semantic categories are resolved to physical instances instead of being
-unioned into one oversized box. Geometry only: answers are never read.
+Only role-accepted views enter chosen_readable. Unaccepted best attempts stay
+diagnostic; geometry acceptance does not resolve semantic-instance ambiguity.
 """
 import json
 import math
@@ -20,15 +18,17 @@ from position_fit import from_position, perimeter_positions
 from silhouette import make_target_bvh, measure as measure_silhouette
 from continuous_fit import solve as continuous_solve
 from continuous_fit import solve_standing
+from acceptance import assess_view, MIN_RELATION, MIN_SHORT_SIDE
 
 SCENE = g.SCENE
 OUT = Path(g.cli_arg('--out', str(HERE / f'geometry_{SCENE}.json')))
 MARGIN = .07
-AREA = .003
+AREA = .0008
 VISIBLE = .20
 SIZE_VISIBLE = .55
 MAX_VIEWS = 6
 TARGET_BVH = {}
+REJECTED_VIEWS = []
 FLOOR_PARTS = [g.bbox(g.bpy.data.objects[name]) for name in g.groups['room']['floor']]
 POSITIONS = [p for p in perimeter_positions(g.floor)
              if any(all(box['min'][i]+.04 <= p[i] <= box['max'][i]-.04 for i in (0, 1))
@@ -213,7 +213,22 @@ def finish(cam, required, all_items, role, pairs=()):
         cam['cutting_board_visibility']=mask
         cam['instance_metrics'][item['key']]['silhouette']=mask
         cam['instance_metrics'][item['key']]['readable'] &= clear
+    room_layout = bool(required) and all(item['semantic']=='__room__' for item in required)
+    visible_gate = 0. if room_layout else g.MIN_VISIBLE
     cam['relation_check']=relation_score(cam,required,pairs)
+    cam['geometry_safe'] = safe_location(cam['location'])
+    cam['acceptance'] = assess_view(cam, required, pairs, min_area=g.MIN_AREA,
+                                     min_visible=visible_gate)
+    if not cam['geometry_safe']:
+        cam['acceptance']['passed'] = False
+        cam['acceptance']['failures'].append('unsafe_camera_location')
+        cam['acceptance']['violation'] += 1.
+    cam['relation_check']['complete'] = cam['acceptance']['passed']
+    if room_layout:
+        cam['metadata']['evidence_scope']='room_footprint_layout'
+        for item in required:
+            cam['instance_metrics'][item['key']]['readable']=cam['acceptance']['passed']
+            cam['instance_metrics'][item['key']]['readability_scope']='room_footprint_layout'
     return cam
 
 
@@ -245,17 +260,21 @@ def fit_group(required,all_items,role,pairs=(),prefix='group',context=False,prio
         spans=[max((box['max'][i]-box['min'][i])*1.45,.7 if i<2 else .4) for i in range(3)]
         boxes=[{'min':[target[i]-spans[i]/2 for i in range(3)],
                 'max':[target[i]+spans[i]/2 for i in range(3)]}]
-    return continuous_solve(g,required,all_items,boxes,role,pairs,prefix,finish,safe_location,prior_views)
+    main, attempts = continuous_solve(g,required,all_items,boxes,role,pairs,prefix,
+                                     finish,safe_location,prior_views)
+    REJECTED_VIEWS.extend(c for c in attempts if not c['acceptance']['passed'])
+    return main, [c for c in attempts if c['acceptance']['passed']]
 
 
 def pair_covered(view, required, pair):
-    if not has_metrics(view, required):
+    if (not has_metrics(view, required) or not view.get('geometry_safe')
+            or not set(pair).issubset({item['semantic'] for item in required})):
         return False
-    check = relation_score(view, required, [pair])
-    return check['complete'] and check['projection_retention'] >= .55
+    return assess_view(view, required, [pair], min_area=g.MIN_AREA,
+                       min_visible=g.MIN_VISIBLE)['passed']
 
 
-def paired_comparisons(q,all_items):
+def paired_comparisons(q,all_items,prior_views=()):
     available={i['semantic'] for i in all_items}
     qq=dict(q,roles=dict(q.get('roles',{})))
     qq['roles']['candidates']=[s for s in qq['roles'].get('candidates',[]) if s in available]
@@ -265,8 +284,8 @@ def paired_comparisons(q,all_items):
     pairsets=[[(anchor,s) for s in group if s!=anchor] for group in groups]
     pools=[]
     for n,frame in enumerate(frames):
-        _,candidates=fit_group(frame,all_items,f'anchor_comparison_{n+1}',pairsets[n],f'compare{n+1}')
-        valid=[c for c in candidates if c['relation_check']['anchor_readable']]
+        _,candidates=fit_group(frame,all_items,f'anchor_comparison_{n+1}',pairsets[n],f'compare{n+1}',prior_views=prior_views)
+        valid=[c for c in candidates if c['acceptance']['passed']]
         ordered=sorted(valid,key=lambda c:c['relation_check']['score'],reverse=True)
         low=[c for c in ordered if c['relation_check']['recognition_elevation']<=50]
         pools.append(list({c['id']:c for c in ordered[:8]+low[:8]}.values()))
@@ -421,167 +440,152 @@ def build_special(q,items,resolution):
     """Counting, room-size and size views; no relationship camera needed."""
     qtype=q['question_type']; notes=list(resolution['notes'])
     if qtype=='object_counting':
-        if not items:return fallback_room_views(),notes,'reconstruction_missing_semantic'
-        return [top_view(items,'count_top')],notes,'complete'
+        if not items:return [],notes,'reconstruction_missing_semantic'
+        top=top_view(items,'count_top')
+        if top['acceptance']['passed']:
+            return [top],notes,None
+        REJECTED_VIEWS.append(top)
+        main,_=fit_group(items,items,'count_group_context',prefix='count_group',context=True)
+        views=[main] if main else []
+        for index,item in enumerate(items):
+            if len(views)>=MAX_VIEWS:break
+            if any(v['instance_metrics'][item['key']]['readable'] for v in views):continue
+            support,_=fit_group([item],items,'count_instance_context',prefix='count_'+str(index),context=True,prior_views=views)
+            if support:views.append(support)
+        return views,notes,None
     if qtype=='room_size_estimation':
         room=[dict(item, semantic='__room__') for item in g.instances['__room__']]
-        return [top_view(room,'room_top')],notes,'complete'
+        top=top_view(room,'room_top')
+        if top['acceptance']['passed']:return [top],notes,None
+        REJECTED_VIEWS.append(top)
+        return [],notes,'no_accepted_view'
     if qtype=='object_size_estimation':
         g.MIN_AREA=.006; g.MIN_VISIBLE=SIZE_VISIBLE
-        if not items:return fallback_room_views(),notes,'reconstruction_missing_semantic'
+        if not items:return [],notes,'reconstruction_missing_semantic'
         main,_=fit_group(items,items,'single_size_context',prefix='size',context=True)
         notes.append('Main view includes local scale context; no automatic second context image')
         if main and main['relation_check']['complete']:
             return [main],notes,'complete'
-        return fallback_room_views(),notes,'fallback'
+        return [],notes,'no_accepted_view'
     raise RuntimeError('Not a special question type: '+qtype)
 
 
 records=[]
 for q in g.questions:
     qtype=q['question_type']; print('Q',q['qa_id'],qtype,flush=True)
+    REJECTED_VIEWS=[]
     CURRENT_RESOLUTION=resolve_question(q)
     items=CURRENT_RESOLUTION['items']
     missing=sorted(set(CURRENT_RESOLUTION['missing']))
-    ambiguous=[s for s in q['targets'] if len(g.instances.get(s, [])) > 1]
+    ambiguous=([s for s in q['targets'] if len(g.instances.get(s, [])) > 1]
+               if qtype not in {'object_counting','room_size_estimation'} else [])
     g.MIN_AREA=AREA; g.MIN_VISIBLE=VISIBLE
-    views=[]; notes=list(CURRENT_RESOLUTION['notes']); reference=None; layout=None
-    special_status=None; standing_count=0
+    views=[]; notes=list(CURRENT_RESOLUTION['notes']); reference=None
+    special_status=None
 
     if qtype not in {'object_abs_distance','object_rel_distance'} and not qtype.startswith('object_rel_direction'):
         views,notes,special_status=build_special(q,items,CURRENT_RESOLUTION)
     elif qtype=='object_rel_distance':
         anchor=q['roles']['anchor'][0]
         available={i['semantic'] for i in items}
-        if not items or anchor not in available:
-            views=fallback_room_views()
-            special_status='reconstruction_missing_semantic'
-            if anchor not in missing:missing.append(anchor)
-            missing=sorted(set(missing))
-        else:
-            pairs=[(anchor,s) for s in q['roles']['candidates']
-                   if s!=anchor and s in available]
+        pairs=[(anchor,s) for s in q['roles']['candidates'] if s!=anchor and s in available]
+        if items and anchor in available:
             layout,_=fit_group(items,items,'layout_overview',pairs,'overview')
-            if layout and layout['relation_check']['anchor_readable']:
-                views.append(layout)
-            elif layout:
-                notes.append('题干锚点在总览中被遮挡，省略该图，以共同锚点比较图补足')
-            if layout is None or not layout['relation_check']['complete'] or ambiguous:
-                room = [dict(item, semantic='__room__') for item in g.instances['__room__']]
-                views.insert(0, top_view(room, 'ambiguous_instance_room_top'))
-                notes.append('Analytic room overview added for incomplete layout or unresolved repeated instances')
-            if ambiguous:
-                notes.append('Repeated instances are unresolved: local views use provisional geometry-selected representatives')
-            # Greedily solve only missing anchor–candidate relations. Each new
-            # solve considers prior views; this is not a joint global optimizer.
+            if layout:views.append(layout)
+            comparisons,groups=paired_comparisons(q,items,prior_views=views)
+            views.extend(comparisons)
+            notes.append('Continuous shared-anchor comparison groups: '+str(groups))
             for a,b in pairs:
+                if len(views)>=MAX_VIEWS:break
                 required=selected_items(q,[a,b])
-                if not required:continue
                 if any(pair_covered(v,required,(a,b)) for v in views):continue
-                extra,_=fit_group(required,items,'anchor_pair_support',[(a,b)],'pair'+str(len(views)),prior_views=views)
-                if extra and pair_covered(extra,required,(a,b)) and len(views)<MAX_VIEWS:
-                    views.append(extra)
+                prefix='pair_'+a.replace(' ','_')+'_'+b.replace(' ','_')
+                extra,_=fit_group(required,items,'anchor_pair_support',[(a,b)],prefix,prior_views=views)
+                if extra:views.append(extra)
+        else:
+            special_status='reconstruction_missing_semantic'
     elif qtype=='object_abs_distance':
-        pairs=[tuple(q['roles']['endpoints'][:2])]
-        if not items:
-            views=fallback_room_views()
-            special_status='reconstruction_missing_semantic'
+        if items:
+            pair=tuple(q['roles']['endpoints'][:2])
+            main,_=fit_group(items,items,'distance_pair',[pair],'distance')
+            if main:views.append(main)
         else:
-            main,candidates=fit_group(items,items,'distance_pair',pairs,'distance')
-            if main:
-                views.append(main)
-                alternatives=[c for c in candidates
-                    if c['relation_check']['readable_count']>=main['relation_check']['readable_count']
-                    and abs(g.dot(c['forward'],main['forward']))<.88]
-                if alternatives:
-                    views.append(max(alternatives,key=lambda c:c['relation_check']['score']))
+            special_status='reconstruction_missing_semantic'
     else:
-        if not items:
-            views=fallback_room_views()
-            special_status='reconstruction_missing_semantic'
-        else:
-            reference,standing_count=solve_standing(g,q,items,finish,safe_location,standing_free)
-            if reference:
-                views.append(reference)
-            else:
-                notes.append('No clear facing-object view found in the collision-free standing region')
+        if items:
+            reference,evaluations=solve_standing(g,q,items,finish,safe_location,standing_free,
+                                                 diagnostics=REJECTED_VIEWS)
+            if reference:views.append(reference)
+            notes.append('Standing continuous evaluations: '+str(evaluations))
             layout,_=fit_group(items,items,'direction_layout',prefix='direction_layout')
             if layout:views.append(layout)
-            f=q['roles']['facing'][0]; target=q['roles']['query'][0]
-            required=selected_items(q,[f,target])
-            if required and not any(has_metrics(v,required) and
-                                    relation_score(v,required)['complete'] for v in views):
-                extra,_=fit_group(required,items,'direction_relation_support',prefix='direction_pair')
+            pair=(q['roles']['facing'][0],q['roles']['query'][0])
+            required=selected_items(q,list(pair))
+            if not any(pair_covered(v,required,pair) for v in views):
+                extra,_=fit_group(required,items,'direction_relation_support',[pair],
+                                  prefix='direction_pair',prior_views=views)
                 if extra:views.append(extra)
-            notes.append('Standing candidates evaluated: '+str(standing_count))
+        else:
+            special_status='reconstruction_missing_semantic'
 
-    if not views:
-        views=fallback_room_views()
-        special_status=special_status or 'fallback'
-    views=unique_views(views)
-    if len(views)>MAX_VIEWS:
-        views=views[:MAX_VIEWS]
-
-    readable=set().union(*({k for k,v in c['instance_metrics'].items() if v['readable']} for c in views))
-    missing_readable=sorted({i['key'] for i in items}-readable)
+    # This is the only route to render/QA inputs: every emitted view passed its
+    # declared role's geometry gates. Failed best attempts stay diagnostic.
+    accepted=[]
+    for view in unique_views(views):
+        if view.get('geometry_safe') and view['acceptance']['passed']:
+            accepted.append(view)
+        else:
+            REJECTED_VIEWS.append(view)
+    views=accepted[:MAX_VIEWS]
+    readable=set().union(*({k for k,v in c['instance_metrics'].items() if v['readable']} for c in views)) if views else set()
+    needed=[i for i in items if not qtype.startswith('object_rel_direction')
+            or i['semantic'] in (q['roles']['facing'][0],q['roles']['query'][0])]
+    missing_readable=sorted({i['key'] for i in needed}-readable)
     pairs=[]
-    if qtype=='object_abs_distance':
-        pairs=[tuple(q['roles']['endpoints'][:2])]
-    elif qtype=='object_rel_distance':
-        pairs=[(q['roles']['anchor'][0],s) for s in q['roles']['candidates']]
-    elif qtype.startswith('object_rel_direction'):
-        pairs=[(q['roles']['facing'][0],q['roles']['query'][0])]
+    if qtype=='object_abs_distance':pairs=[tuple(q['roles']['endpoints'][:2])]
+    elif qtype=='object_rel_distance':pairs=[(q['roles']['anchor'][0],s) for s in q['roles']['candidates']]
+    elif qtype.startswith('object_rel_direction'):pairs=[(q['roles']['facing'][0],q['roles']['query'][0])]
     missing_pairs=[]
-    for a,b in pairs:
-        required=selected_items(q,[a,b])
-        if not required:
-            missing_pairs.append(a+' -> '+b)
-        elif not any(pair_covered(v,required,(a,b)) for v in views):
-            missing_pairs.append(a+' -> '+b)
-
-    standing_ok=(not qtype.startswith('object_rel_direction') or
-                 (reference is not None and reference['relation_check']['complete']))
-    if special_status in {'reconstruction_missing_semantic','fallback'}:
-        selection_status=special_status
-    elif missing:
+    for pair in pairs:
+        required=selected_items(q,list(pair))
+        if not any(pair_covered(v,required,pair) for v in views):
+            missing_pairs.append(pair[0]+' -> '+pair[1])
+    direction=qtype.startswith('object_rel_direction')
+    standing_ok=not direction or (reference is not None and reference['acceptance']['passed'])
+    standing_joint=not direction or (reference is not None and reference['joint_acceptance']['passed'])
+    if missing or special_status=='reconstruction_missing_semantic':
         selection_status='incomplete_missing_semantic'
-    elif qtype in {'object_counting','room_size_estimation'}:
-        selection_status=special_status or 'complete'
+    elif not views:
+        selection_status='no_accepted_view'
     elif missing_pairs:
         selection_status='incomplete_relation'
+    elif direction and not standing_ok:
+        selection_status='incomplete_standing_reference'
     elif missing_readable:
         selection_status='incomplete_readability'
     elif ambiguous:
         selection_status='incomplete_instance_ambiguity'
-    elif qtype.startswith('object_rel_direction') and not standing_ok:
-        selection_status='incomplete_standing_reference'
     else:
         selection_status='complete'
-
     object_boxes={s:[i['box'] for i in g.instances[s]]
                   for s in q['targets'] if s!='__room__' and s in g.instances}
-    records.append(dict(q,chosen_readable=views,missing_semantics=missing,
-        resolution_mode=CURRENT_RESOLUTION['mode'],
-        instance_keys=CURRENT_RESOLUTION['instance_keys'],
-        ambiguous_semantics=ambiguous,
-        missing_readable=missing_readable,missing_pairs=missing_pairs,
-        selection_status=selection_status,standing_joint_view_complete=standing_ok,
-        notes=notes,
-        direction_reference_missing=(None if standing_ok else
-            '站位邻域内没有可用参照图' if reference is None else
-            '站位参照图未能同时看清面向物体与查询物体；请结合布局补图'),
-        object_boxes=object_boxes))
-    print('VIEWS',q['qa_id'],len(views),selection_status,
-          'missing_sem',missing,'missing_pairs',missing_pairs,flush=True)
+    records.append(dict(q,chosen_readable=views,diagnostic_views=unique_views(REJECTED_VIEWS),
+        qa_ready=selection_status=='complete',missing_semantics=missing,
+        resolution_mode=CURRENT_RESOLUTION['mode'],instance_keys=CURRENT_RESOLUTION['instance_keys'],
+        ambiguous_semantics=ambiguous,missing_readable=missing_readable,missing_pairs=missing_pairs,
+        selection_status=selection_status,standing_reference_accepted=standing_ok,
+        standing_joint_view_complete=standing_joint,notes=notes,object_boxes=object_boxes))
+    print('VIEWS',q['qa_id'],len(views),selection_status,'missing_pairs',missing_pairs,flush=True)
 
 payload={'scene':SCENE,'blend':g.bpy.data.filepath,'question_count':len(records),
-    'selection_method':'continuous_greedy_complementary_camera_solve',
+    'selection_method':'continuous_solve_with_role_geometry_acceptance',
     'qa_status':'NOT_RUN','api_calls':0,
     'parameters':{'margin':MARGIN,'min_area':AREA,'min_visible':VISIBLE,'max_views':MAX_VIEWS,
-        'standing_offset_range':[.3,.65],'standing_eye_heights':[1.45,1.65],
-        'standing_lenses':[35,24],'max_heading_deviation_deg':25,
-        'relative_strategy':'overview + two shared-anchor comparison groups + pair support only',
-        'topdown_always_considered':True,'isolated_relation_closeups':False},
+        'min_relation_projection':MIN_RELATION,'min_projected_short_side':MIN_SHORT_SIDE,
+        'standing_offset_range':[.25,.75],'standing_eye_height':1.55,
+        'standing_lens_range':[18,35],'max_heading_deviation_deg':25,
+        'relative_strategy':'accepted overview + two shared-anchor groups + missing-pair support',
+        'failed_views_are_diagnostics_only':True},
     'elapsed_seconds':time.monotonic()-START,'questions':records}
 OUT.write_text(json.dumps(payload,ensure_ascii=False,indent=2),encoding='utf8')
 print('VIEW_SELECTION_OK',len(records),OUT,round(payload['elapsed_seconds'],2),flush=True)

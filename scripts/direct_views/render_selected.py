@@ -35,6 +35,7 @@ GEOMETRY_PATH = Path(cli_arg("--geometry", str(HERE / f"geometry_{SCENE}.json"))
 OUT_ROOT = Path(cli_arg("--out-root", str(HERE / "renders" / SCENE)))
 MANIFEST_PATH = Path(cli_arg("--manifest", str(HERE / "render_manifest.json")))
 GROUPS_PATH = Path(cli_arg("--groups", str(HERE / f"object_groups_{SCENE}.json")))
+RENDER_DIAGNOSTICS = '--render-diagnostics' in sys.argv
 
 
 def look_at_euler(location, target):
@@ -102,19 +103,23 @@ for question in geometry["questions"]:
     qa_id = str(question["qa_id"])
     if QA_FILTER and qa_id not in QA_FILTER:
         continue
-    views = question.get("chosen_readable") or []
-    if not views:
-        print("SKIP no views", qa_id, flush=True)
-        continue
-    out_dir = OUT_ROOT / qa_id
-    out_dir.mkdir(parents=True, exist_ok=True)
+    views = [(view, 'views') for view in question.get('chosen_readable', [])]
+    if RENDER_DIAGNOSTICS:
+        views += [(view, 'diagnostic_views') for view in question.get('diagnostic_views', [])]
     record = {
         "qa_id": qa_id,
         "question_type": question["question_type"],
         "targets": question["targets"],
+        "selection_status": question['selection_status'],
+        "qa_ready": question['qa_ready'],
         "views": [],
+        "diagnostic_views": [],
     }
-    for index, view in enumerate(views, 1):
+    for index, (view, kind) in enumerate(views, 1):
+        if kind=='views':
+            assert view['acceptance']['passed'] and view['geometry_safe'], 'Unaccepted view cannot enter QA inputs'
+        out_dir = (OUT_ROOT / qa_id if kind=='views' else OUT_ROOT / 'diagnostics' / qa_id)
+        out_dir.mkdir(parents=True, exist_ok=True)
         camera.location = Vector(view["location"])
         if view["ortho_scale"] is not None:
             camera.data.type = "ORTHO"
@@ -157,7 +162,7 @@ for question in geometry["questions"]:
         filepath = out_dir / f"{index:02d}_{view['id']}.png"
         scene.render.filepath = str(filepath.resolve())
         bpy.ops.render.render(write_still=True)
-        record["views"].append({
+        record[kind].append({
             "index": index,
             "view_id": view["id"],
             "method": view["method"],
@@ -170,11 +175,15 @@ for question in geometry["questions"]:
             "sha256": sha256(filepath),
             "bytes": filepath.stat().st_size,
             "projection_max_error": max_error,
+            "acceptance": view['acceptance'],
+            "geometry_accepted": kind=='views',
+            "qa_eligible": kind=='views' and question['qa_ready'],
         })
         print("RENDER", qa_id, index, view["id"], filepath.stat().st_size, flush=True)
     manifest["questions"].append(record)
 
 manifest["elapsed_seconds"] = round(time.time() - started, 2)
 manifest["view_count"] = sum(len(item["views"]) for item in manifest["questions"])
+manifest['diagnostic_view_count'] = sum(len(item['diagnostic_views']) for item in manifest['questions'])
 MANIFEST_PATH.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
 print("RENDER_OK", manifest["view_count"], MANIFEST_PATH, flush=True)
