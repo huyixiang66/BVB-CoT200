@@ -8,11 +8,13 @@ import time
 from pathlib import Path
 
 import bpy
-from mathutils import Vector
+from mathutils import Matrix, Vector
+from bpy_extras.object_utils import world_to_camera_view
 
 
 HERE = Path(__file__).resolve().parent
-ROOT = HERE.parent
+sys.path.insert(0, str(HERE))
+from fit_camera import bbox_corners, project
 
 
 def cli_arg(name, default=None):
@@ -26,14 +28,13 @@ def cli_arg(name, default=None):
     return default
 
 
-GEOMETRY_PATH = Path(cli_arg(
-    "--geometry", str(ROOT / "runs" / "envelope_views" / "geometry.json")))
-OUT_ROOT = Path(cli_arg(
-    "--out", str(ROOT / "runs" / "envelope_views" / "renders")))
-MANIFEST_PATH = Path(cli_arg(
-    "--manifest", str(ROOT / "runs" / "envelope_views" / "render_manifest.json")))
 QA_FILTER = set((cli_arg("--qa", "") or "").split(",")) - {""}
 RESOLUTION = int(cli_arg("--res", "512"))
+SCENE = cli_arg("--scene", "0d2ee665be")
+GEOMETRY_PATH = Path(cli_arg("--geometry", str(HERE / f"geometry_{SCENE}.json")))
+OUT_ROOT = Path(cli_arg("--out-root", str(HERE / "renders" / SCENE)))
+MANIFEST_PATH = Path(cli_arg("--manifest", str(HERE / "render_manifest.json")))
+GROUPS_PATH = Path(cli_arg("--groups", str(HERE / f"object_groups_{SCENE}.json")))
 
 
 def look_at_euler(location, target):
@@ -45,16 +46,16 @@ def look_at_euler(location, target):
 
 def sha256(path):
     with Path(path).open("rb") as stream:
-        return hashlib.file_digest(stream, "sha256").hexdigest()
+        return hashlib.sha256(stream.read()).hexdigest()
 
 
 geometry = json.loads(GEOMETRY_PATH.read_text(encoding="utf-8"))
-scene_name = geometry.get("scene") or Path(bpy.data.filepath).stem
 scene = bpy.context.scene
 scene.render.engine = "BLENDER_EEVEE"
 scene.render.resolution_x = RESOLUTION
 scene.render.resolution_y = RESOLUTION
 scene.render.resolution_percentage = 100
+scene.render.pixel_aspect_x = scene.render.pixel_aspect_y = 1.0
 scene.render.image_settings.file_format = "PNG"
 scene.render.image_settings.color_mode = "RGB"
 scene.render.film_transparent = False
@@ -63,9 +64,12 @@ try:
 except Exception:
     pass
 
-ceiling_names = set(geometry.get("room", {}).get("ceiling_objects", []))
+groups = json.loads(GROUPS_PATH.read_text(encoding="utf-8"))
+ceiling_meshes = set(groups["room"]["ceiling"])
+if groups['room'].get('remove_walls', False):
+    ceiling_meshes.update(groups['room'].get('walls', []))
 for obj in bpy.data.objects:
-    if obj.type == "MESH" and (obj.name in ceiling_names or "ceiling" in obj.name.lower()):
+    if obj.type == "MESH" and obj.name in ceiling_meshes:
         obj.hide_render = True
 
 if not any(obj.type == "LIGHT" for obj in bpy.data.objects):
@@ -77,6 +81,7 @@ if not any(obj.type == "LIGHT" for obj in bpy.data.objects):
 
 camera_data = bpy.data.cameras.new("selected_view_camera")
 camera_data.sensor_width = 36.0
+camera_data.sensor_fit = 'HORIZONTAL'
 camera_data.clip_start = 0.03
 camera_data.clip_end = 100.0
 camera = bpy.data.objects.new("selected_view_camera", camera_data)
@@ -84,15 +89,14 @@ scene.collection.objects.link(camera)
 scene.camera = camera
 
 manifest = {
-    "scene": scene_name,
+    "scene": SCENE,
     "blend": bpy.data.filepath,
     "resolution": [RESOLUTION, RESOLUTION],
     "engine": scene.render.engine,
-    "no_image_access": True,
+    "visual_inspection_allowed": True,
     "questions": [],
 }
 started = time.time()
-MANIFEST_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 for question in geometry["questions"]:
     qa_id = str(question["qa_id"])
@@ -119,8 +123,37 @@ for question in geometry["questions"]:
         else:
             camera.data.type = "PERSP"
             camera.data.lens = float(view["lens_mm"])
-            camera.rotation_euler = look_at_euler(view["location"], view["target"])
+            if 'right' in view:
+                camera.rotation_euler = Matrix((view['right'], view['up'],
+                    [-v for v in view['forward']])).transposed().to_euler()
+            else:
+                camera.rotation_euler = look_at_euler(view["location"], view["target"])
+        if 'right' in view:
+            camera.rotation_euler = Matrix((view['right'], view['up'],
+                [-v for v in view['forward']])).transposed().to_euler()
         bpy.context.view_layer.update()
+        max_error = 0.0
+        for semantic, boxes in question.get('object_boxes', {}).items():
+            for instance, box in enumerate(boxes):
+                check_keys = view.get('metadata', {}).get('projection_check_keys', view.get('metadata', {}).get('frame_keys', []))
+                if f'{semantic}#{instance}' not in check_keys:
+                    continue
+                for corner in bbox_corners(box):
+                    if view['ortho_scale'] is None:
+                        depth = sum((corner[i]-view['location'][i])*view['forward'][i] for i in range(3))
+                        if depth<=.03:
+                            continue
+                        expected = project(corner, view)
+                        # Near-horizon off-screen corners amplify float error;
+                        # validate visible image coordinates for standing views.
+                        if view.get('metadata', {}).get('role')=='standing_reference' and not (0<=expected[0]<=1 and 0<=expected[1]<=1):
+                            continue
+                    else:
+                        delta = [corner[i]-view['location'][i] for i in range(3)]
+                        expected = [.5+sum(delta[i]*view[axis][i] for i in range(3))/view['ortho_scale'] for axis in ('right','up')]
+                    actual = world_to_camera_view(scene, camera, Vector(corner))
+                    max_error = max(max_error, abs(expected[0]-actual.x), abs(expected[1]-actual.y))
+        assert max_error < 1e-5, ('projection disagreement', max_error)
         filepath = out_dir / f"{index:02d}_{view['id']}.png"
         scene.render.filepath = str(filepath.resolve())
         bpy.ops.render.render(write_still=True)
@@ -136,6 +169,7 @@ for question in geometry["questions"]:
             "file": str(filepath.resolve()),
             "sha256": sha256(filepath),
             "bytes": filepath.stat().st_size,
+            "projection_max_error": max_error,
         })
         print("RENDER", qa_id, index, view["id"], filepath.stat().st_size, flush=True)
     manifest["questions"].append(record)

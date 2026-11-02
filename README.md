@@ -2,7 +2,7 @@
 
 ## 纯几何选视角（实验入口）
 
-仓库提供单题 Blender 几何选位脚本：输入 `.blend`、来源视频和题目 JSON，输出选中的相机位姿及 Blender 渲染图。运行时不调用 AI。当前版本只用 `.blend` 几何和题目；视频只记录在结果来源信息中，不参与选位。题目 JSON 需要显式提供题型及 Blender 网格名映射。详见 [几何选视角说明](docs/geometry-only-view-selector.md)。
+仓库提供单题 Blender **直接几何求机位**入口：空间关系、方向、距离和尺寸视角使用连续 Powell 优化相机位置与注视点；计数与房间尺寸使用解析俯视图。程序使用 Blender 几何计算可见性、遮挡和构图，不调用 AI。题目 JSON 需显式提供题型、语义角色及 Blender 网格名。视频只记录来源，不参与选位。详见 [几何选视角说明](docs/geometry-only-view-selector.md)。
 
 从已有 **BVB Astra / Luna xhigh `.blend`** 出发，运行固定的 200 道 VSI-Bench 问题（八类各 25 题、126 个场景）。场景来源与 QA 模型独立选择，**每题只请求一次，不做三次采样或投票。**
 
@@ -204,27 +204,6 @@ python -m unittest tests.test_visual_feedback
 
 旧的直接修正候选与候选排序入口已撤下；历史版本保留在 Git 提交记录中。其他微调辅助模块仅供兼容已有代码，当前运行方法以本节为准。
 
-## 包络视角选择
+## 纯几何求解器
 
-独立的几何选视角工具：给定 BVB `.blend` 和题目，按目标联合包络采样相机，用视锥和遮挡射线选最少视角，再渲染。选视角阶段不读像素，不进入 200 题主协议。
-
-可以从 `questions.jsonl` + `recipes.json` 自动生成题目目标和物体分组；也保留人工 `spec.json` + `object_groups.json` 入口。自动模式覆盖 6 类静态空间题，appearance order 和 route planning 会跳过并记录。
-
-```bash
-# 自动输入
-"$BLENDER_BIN" --background --disable-autoexec /path/to/scene.blend --threads 2 \
-  --python-exit-code 1 --python scripts/envelope_views.py -- \
-  --questions data/questions.jsonl \
-  --recipes data/recipes.json \
-  --qa 1723 \
-  --out runs/envelope_views/geometry_1723.json
-
-# 或使用人工确认过的单场景输入
-"$BLENDER_BIN" --background --disable-autoexec /path/to/scene.blend --threads 2 \
-  --python-exit-code 1 --python scripts/envelope_views.py -- \
-  --spec data/envelope_views/0d2ee665be/spec.json \
-  --groups data/envelope_views/0d2ee665be/object_groups.json \
-  --out runs/envelope_views/geometry.json
-```
-
-示例输入、输出字段和当前限制见 [`docs/envelope-view-selection.md`](docs/envelope-view-selection.md)。
+运行方式、输入格式和限制见 [`docs/geometry-only-view-selector.md`](docs/geometry-only-view-selector.md)。

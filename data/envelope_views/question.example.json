@@ -4,8 +4,8 @@
   "question_type": "object_rel_distance",
   "question": "Which is closer to the chair, the bed or the desk?",
   "roles": {
-    "reference": ["chair"],
-    "choices": ["bed", "desk"]
+    "anchor": ["chair"],
+    "candidates": ["bed", "desk"]
   },
   "targets": [
     {

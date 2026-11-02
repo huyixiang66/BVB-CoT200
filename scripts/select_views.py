@@ -20,6 +20,13 @@ SUPPORTED_TYPES = {
     "object_rel_direction_easy", "object_rel_direction_medium",
     "object_rel_direction_hard",
 }
+ROLE_FIELDS = {
+    "object_abs_distance": ("endpoints",),
+    "object_rel_distance": ("anchor", "candidates"),
+    "object_rel_direction_easy": ("standing", "facing", "query"),
+    "object_rel_direction_medium": ("standing", "facing", "query"),
+    "object_rel_direction_hard": ("standing", "facing", "query"),
+}
 
 
 def parse_args(argv=None):
@@ -71,6 +78,21 @@ def load_question(path):
         target_terms.append(term)
 
     room = data.get("room", {})
+    if not room.get("floor"):
+        raise ValueError("room.floor must list the Blender mesh names for the floor")
+    roles = data.get("roles", {})
+    for field in ROLE_FIELDS.get(question_type, ()):
+        if not roles.get(field):
+            raise ValueError("roles.%s is required for %s" % (field, question_type))
+    expected_counts = {"endpoints": 2, "anchor": 1, "standing": 1,
+                       "facing": 1, "query": 1}
+    for field in ROLE_FIELDS.get(question_type, ()):
+        value = roles[field]
+        if field in expected_counts and len(value) != expected_counts[field]:
+            raise ValueError("roles.%s must contain %d term(s)" %
+                             (field, expected_counts[field]))
+        if any(term not in group_map for term in value):
+            raise ValueError("roles.%s contains a term missing from targets[]" % field)
     selected_room = {"selection": "user_input"}
     if room.get("floor"):
         selected_room["floor"] = room["floor"]
@@ -80,7 +102,7 @@ def load_question(path):
         {"scene": data.get("scene", "user_scene"), "question_count": 1,
          "questions": [{"qa_id": qa_id, "question_type": question_type,
                         "question": question, "targets": target_terms,
-                        "roles": data.get("roles", {}), "room": selected_room}]},
+                        "roles": roles, "room": selected_room}]},
         {"scene": data.get("scene", "user_scene"), "groups": group_map,
          "room": {"floor": room.get("floor", []),
                   "ceiling": room.get("ceiling", []),
@@ -135,16 +157,25 @@ def main(argv=None):
     spec_path.write_text(json.dumps(spec, ensure_ascii=False, indent=2), encoding="utf-8")
     groups_path.write_text(json.dumps(groups, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    run_blender(args.blender, args.blend, ROOT / "scripts" / "envelope_views.py", [
+    run_blender(args.blender, args.blend, ROOT / "scripts" / "direct_views" / "select_views.py", [
         "--scene", spec["scene"], "--spec", spec_path, "--groups", groups_path,
-        "--out", geometry_path, "--summary", summary_path,
+        "--out", geometry_path,
     ])
-    run_blender(args.blender, args.blend, ROOT / "scripts" / "render_envelope_views.py", [
-        "--geometry", geometry_path, "--out", render_root,
-        "--manifest", render_manifest, "--res", args.resolution,
+    run_blender(args.blender, args.blend, ROOT / "scripts" / "direct_views" / "render_selected.py", [
+        "--geometry", geometry_path, "--groups", groups_path, "--out-root", render_root,
+        "--manifest", render_manifest, "--res", args.resolution, "--scene", spec["scene"],
     ])
     for path in (geometry_path, render_manifest):
         attach_provenance(path, args.video, args.question)
+    result = json.loads(geometry_path.read_text(encoding="utf-8"))
+    lines = ["# Direct geometric view selection", "",
+             "Continuous geometry optimization; no AI or video pixels used.", ""]
+    for item in result.get("questions", []):
+        ids = ", ".join(view.get("id", "") for view in item.get("chosen_readable", []))
+        lines.append("- %s (%s): %s view(s): %s" % (
+            item.get("qa_id", ""), item.get("question_type", ""),
+            len(item.get("chosen_readable", [])), ids))
+    summary_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print("SELECT_VIEWS_OK", geometry_path)
     print("RENDERS", render_root)
     return 0
