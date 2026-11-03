@@ -12,6 +12,7 @@ from pathlib import Path
 
 import numpy as np
 from bvb_v4.dinov2_appearance import read, save, sha, roi_key, pair_evidence
+from bvb_v4.pose_association import enhanced_support, pair_signals, position_evidence, refine_groups
 from bvb_v4.select_frames import choose, unit, pose_distance
 
 
@@ -102,6 +103,15 @@ def run(a):
     assert sha(a.appearance/'features.npz')==runmeta['features_sha256']
     assert sha(a.v3/'peaks.json')==rois['provenance']['peaks_sha256']
     rows=rois['rows'];assert list(feats['ids'])==[r['id'] for r in rows]
+    use_pose = getattr(a, 'pose_association', False)
+    if use_pose:
+        spatial = position_evidence(pp, a.cache, a.lingbot, a.intrinsics_size)
+        roi_by_id = {r['id']: r for r in rows}
+
+    def support(names, pairs):
+        if use_pose:
+            return enhanced_support(names, pairs, roi_by_id, representative_support)
+        return representative_support(names, pairs)
     rid={r['id']:i for i,r in enumerate(rows)};anchors={p:i for i,r in enumerate(rows) for p in r['anchor_for']}
     geometry=read(a.v4/'anchor-geometry.json');cand=read(a.cache/'candidates.json')
     sampling=read(a.lingbot/'sampling.json');pose=np.load(a.lingbot/'camera-poses.npz')
@@ -142,11 +152,16 @@ def run(a):
                 'merge_supported':reason in ['two_independent_anchor_supported_matches','two_view_supported_matches'],'reason':reason,
                 'geometry_warning_only':aggressive and evidence['geometry_conflict_heuristic']}
         record.pop('automatic_merge',None);record.pop('decision',None)
-        pairmap[tuple(sorted((x,y)))]=record;pairlist.append(record)
+        key = tuple(sorted((x, y)))
+        if use_pose:
+            record.update(pair_signals(spatial[key], evidence['cosine_cls']))
+        pairmap[key]=record;pairlist.append(record)
     clusters=[];history=[]
     for obj in qs['objects']:
         names=[p['peak_id'] for p in pp if p['object']==obj]
         cc,hh=(representative_clusters if a.mode=='aggressive' else constrained_clusters)(names,pairmap)
+        if use_pose:
+            cc,hh=refine_groups(cc,hh,pairmap,support)
         for k,ids in enumerate(cc,1):clusters.append({'group_id':obj.replace(' ','-')+f'-instance-{k:02d}',
                               'object':obj,'peak_ids':ids,'identity_status':'multi_peak_supported_hypothesis' if len(ids)>1 else 'unresolved_single_peak'})
         history+=hh
@@ -201,7 +216,7 @@ def run(a):
     for g in final:
         assert 4<=len({r['source_frame_index'] for r in g['selected']})<=8
         if a.mode=='aggressive':
-            proof=representative_support(g['peak_ids'],pairmap);assert proof
+            proof=support(g['peak_ids'],pairmap);assert proof
             g['representative_evidence']=proof
         else:
             for x,y in itertools.combinations(g['peak_ids'],2):assert pairmap[tuple(sorted((x,y)))]['merge_supported']
@@ -229,6 +244,17 @@ def run(a):
                       geometry='sparse LingBot geometry conflict is warning only; same-frame distinct remains a hard veto',
                       group_mean_floor=.60)
         config['limitations'].append('Aggressive policy increases risk of merging similar furniture and tolerates geometry conflicts. Unknown single-observation peaks still cannot merge.')
+    if use_pose:
+        config['pose_association'] = {
+            'intrinsics_size': list(a.intrinsics_size),
+            'rule': 'After appearance grouping, require a direct cross-group pose link or a qualifying expanded small-ROI pair.',
+            'small_pair_floor': .45,
+            'depth_min_shared_points': 24,
+            'depth_min_shared_fraction': .60,
+            'keypoint_track_max_error_px': 12,
+        }
+        config['source_sha256'][str(a.lingbot/'sparse-geometry-corrected.npz')] = sha(
+            a.lingbot/'sparse-geometry-corrected.npz')
     summary['mode']=a.mode
     for name,data in [('groups',final),('summary',summary),('questions',qs),('config',config),('peak-association',pairlist),('peak-observations',peakinfo),('merge-history',history)]:save(a.out/(name+'.json'),data)
     print({k:v for k,v in summary.items() if k!='questions'})
@@ -239,7 +265,13 @@ if __name__=='__main__':
     for k in ['v3','v4','appearance','cache','lingbot','out']:ap.add_argument('--'+k,type=Path,required=True)
     ap.add_argument('--threshold',type=float)
     ap.add_argument('--mode',choices=['conservative','aggressive'],default='conservative')
+    ap.add_argument('--pose-association', action='store_true')
+    ap.add_argument('--intrinsics-size', type=int, nargs=2, default=(518, 392), metavar=('WIDTH', 'HEIGHT'))
     args=ap.parse_args()
     if args.threshold is None:args.threshold=.70 if args.mode=='aggressive' else .82
     if not -1<=args.threshold<=1:ap.error('threshold must be in [-1,1]')
+    if args.pose_association and args.mode != 'aggressive':
+        ap.error('--pose-association requires --mode aggressive')
+    if min(args.intrinsics_size) <= 0:
+        ap.error('--intrinsics-size requires positive dimensions')
     run(args)

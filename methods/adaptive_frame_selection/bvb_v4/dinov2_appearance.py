@@ -34,6 +34,16 @@ def roi_key(obj, fid, box):
     return hashlib.sha256(json.dumps([obj, fid, box], sort_keys=True).encode()).hexdigest()[:20]
 
 
+def crop_bounds(box, width, height, policy):
+    x0, y0, x1, y1 = box
+    fraction = 0.
+    if policy == "adaptive-context":
+        fraction = .75 if (x1 - x0) * (y1 - y0) <= .02 * width * height else .20
+    dx, dy = fraction * (x1 - x0), fraction * (y1 - y0)
+    return ([max(0, math.floor(x0-dx)), max(0, math.floor(y0-dy)),
+             min(width, math.ceil(x1+dx)), min(height, math.ceil(y1+dy))], fraction)
+
+
 def prepare(a):
     a.out.mkdir(parents=True, exist_ok=False)
     (a.out / 'crops').mkdir()
@@ -41,6 +51,7 @@ def prepare(a):
     peaks = read(a.peaks)
     cache = read(a.cache / 'candidates.json')
     rows, skipped = {}, []
+    crop_policy = getattr(a, "crop_policy", "tight")
 
     def add(obj, r, peak_id=None):
         box = r.get('box_xyxy')
@@ -58,13 +69,13 @@ def prepare(a):
             with Image.open(src) as image:
                 image = image.convert('RGB')
                 w, h = image.size
-                b = [max(0, math.floor(box[0])), max(0, math.floor(box[1])),
-                     min(w, math.ceil(box[2])), min(h, math.ceil(box[3]))]
+                b, fraction = crop_bounds(box, w, h, crop_policy)
                 if b[2] <= b[0] or b[3] <= b[1]:
                     raise ValueError(f'Invalid ROI: {key}')
                 image.crop(b).save(a.out / 'crops' / (key + '.png'))
             rows[key] = {'id': key, 'object': obj, 'source_frame_index': fid,
                          'timestamp_s': c['timestamp_s'], 'box_xyxy': box, 'crop_box_xyxy': b,
+                         'crop_expansion_each_side': fraction,
                          'crop': f'crops/{key}.png', 'source_sha256': c['frame_sha256'],
                          'crop_sha256': sha(a.out / 'crops' / (key + '.png')),
                          'crop_pixels_sha256': hashlib.sha256(Image.open(a.out/'crops'/(key+'.png')).convert('RGB').tobytes()).hexdigest(),
@@ -81,7 +92,8 @@ def prepare(a):
         c = cache[p['anchor']['frame']]
         add(p['object'], {**p['anchor'], 'source_frame_index': c['source_frame_index'],
                          'status': 'low_score_anchor' if p['fallback'] else 'anchor'}, p['peak_id'])
-    manifest = {'schema_version': 1, 'rows': sorted(rows.values(), key=lambda r: (r['object'], r['source_frame_index'], r['id'])),
+    manifest = {'schema_version': 1, 'crop_policy': crop_policy,
+                'rows': sorted(rows.values(), key=lambda r: (r['object'], r['source_frame_index'], r['id'])),
                 'skipped_context_slots': skipped, 'video_sha256': read(a.cache / 'config.json')['video_sha256'],
                 'provenance': {'groups_sha256': sha(a.result / 'groups.json'), 'peaks_sha256': sha(a.peaks),
                                'geometry_sha256': sha(a.result / 'anchor-geometry.json')},
@@ -280,6 +292,7 @@ def main():
     parser.add_argument('--revision',default='main')
     parser.add_argument('--device',default='cuda:0')
     parser.add_argument('--batch-size',type=int,default=32)
+    parser.add_argument('--crop-policy', choices=('tight', 'adaptive-context'), default='tight')
     a=parser.parse_args()
     if a.batch_size<1:parser.error('--batch-size must be positive')
     if a.action in ['prepare','report'] and (not a.result or not a.peaks):parser.error('--result and --peaks required')

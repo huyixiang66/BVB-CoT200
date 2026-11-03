@@ -60,3 +60,40 @@ python -m bvb_v4.instance_sampling \
 当前 CLI 延续既有 V3/V4 中间文件结构；部分旧工具仍含场景路径、图像尺寸及采样数量假设。报告脚本使用 macOS 字体路径，迁移到其他平台或新数据需调整。该代码并非已验证适配任意视频的一键流水线。
 
 第三方问题解析函数的许可证和来源记录位于 `scripts/object_sampling/vendor/`；其中唯一的 JSON 是源码来源元数据，不是实验结果。
+
+## 扩框和位姿关联
+
+新增参数使用以下流程。准备外观缓存时保持原始检测框坐标，只有特征裁剪扩框。
+小框面积不超过画面 2% 时每边扩 75%，其他框扩 20%，并在图像边界截断。
+
+```bash
+python -m bvb_v4.dinov2_appearance prepare \
+  --crop-policy adaptive-context --out /path/to/context-appearance \
+  --result /path/to/v4/result --peaks /path/to/v3/report/peaks.json \
+  --cache /path/to/detection/cache
+python -m bvb_v4.dinov2_appearance extract \
+  --out /path/to/context-appearance --model facebook/dinov2-base --device cuda:0
+python -m bvb_v4.instance_sampling \
+  --mode aggressive --threshold 0.4 --pose-association --intrinsics-size 518 392 \
+  --v3 /path/to/v3/report --v4 /path/to/v4/result \
+  --appearance /path/to/context-appearance --cache /path/to/detection/cache \
+  --lingbot /path/to/lingbot/poses --out /path/to/new/output
+```
+
+位姿阶段另外需要检测缓存的 `detections.jsonl`、原帧和 LingBot 的
+`sparse-geometry-corrected.npz`。后者包含世界坐标 `points` 和点来源的采样索引
+`frame_ids`。位姿必须是 OpenCV camera-to-world，与点云处于相同坐标系。
+`--intrinsics-size` 是内参对应图像的宽高，投影时会按原帧尺寸缩放。
+
+程序先完成原外观分组，再依次检查跨组证据。两份点云各有至少 24 个点且至少 60%
+同时投进另一段相隔至少半秒的两帧原检测框，并且锚帧相似度达到 0.35，可以提供深度关联。
+深度不足时，局部特征需要通过双向匹配、位姿三角化、相机前方检查和重投影检验，
+并有跨三个视角的重复点，最大误差不超过 12 像素。每次新增合并都要求一条直接跨当前两组的证据。
+
+两个波峰的两对匹配若四个裁剪都是扩 75% 的小框，可以使用 0.45 组门槛。
+原外观分组仍使用 0.60 组均分和同帧分离框约束。新增几何合并的 0.60 排序优先级以
+`priority_only` 标记，实际观测分数与几何记录分别保存在 `peak-association.json` 中。
+
+新增回归检查可运行 `python -m unittest bvb_v4.test_pose_association`。
+三题冻结缓存迁移检查保留相同组别和帧号。阈值是在单场景开发题上检查的经验参数。
+计数视角的运行方式与结果范围见仓库根目录 `docs/pose-clustering-counting.md`。
