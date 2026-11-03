@@ -199,3 +199,7 @@ python -m unittest tests.test_visual_feedback
 ```
 
 旧的直接修正候选与候选排序入口已撤下；历史版本保留在 Git 提交记录中。其他微调辅助模块仅供兼容已有代码，当前运行方法以本节为准。
+
+## Adaptive frame selection methods
+
+[Method implementation, dependencies, and tests](methods/adaptive_frame_selection/README.md) for question-conditioned GroundingDINO / optical-flow / LingBot / DINOv2 frame selection. This addition contains code only: no experiment outputs, generated reports, videos, images, model weights, or feature caches.
