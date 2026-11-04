@@ -1,0 +1,15 @@
+{
+  "name": "bvb-geometry-appearance-075",
+  "status": "experimental",
+  "geometry_source": "central-view LingBot pose and sparse depth",
+  "appearance_source": "DINOv2 features from expanded detection crops of the same category",
+  "score_rule": "g + appearance_weight * s * (1 - g) if g >= geometry_gate else g",
+  "linkage": "complete",
+  "parameters": {
+    "appearance_weight": 0.75,
+    "geometry_gate": 0.0,
+    "minimum_pairs": 1,
+    "threshold": 0.468
+  },
+  "recommended_scope_for_reproduction": "Filter to the target category's observations before peak grouping. This filter is applied to the input, separately from the scoring parameters."
+}
