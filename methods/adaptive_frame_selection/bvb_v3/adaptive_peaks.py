@@ -40,7 +40,7 @@ def associate(predicted, boxes, threshold=.2):
     return result
 
 
-def peak_tracks(rows, obj, index, propagate):
+def peak_tracks(rows, obj, index, propagate, hardcut=.5):
     """One strongest 1fps detection per flow-linked visibility tracklet.
 
     No cross-gap re-ID; two adjacent waves may be the same physical instance.
@@ -64,7 +64,7 @@ def peak_tracks(rows, obj, index, propagate):
             if j in used:continue
             tid=len(tracks);tracks.append({'tracklet':tid,'object':obj,'observations':[{'frame':k,**b}]})
             active[tid]={'frame':k,'last_seen_s':row['timestamp_s'],'box':b['box_xyxy']}
-    passing=[t for t in tracks if max(r['score'] for r in t['observations'])>=.5]
+    passing=[t for t in tracks if max(r['score'] for r in t['observations'])>=hardcut]
     fallback=False
     if not passing and tracks:
         passing=[max(tracks,key=lambda t:max(r['score'] for r in t['observations']))];fallback=True
@@ -98,7 +98,9 @@ def merge_peak_fragments(peaks,times,min_separation=6.):
 def main():
     ap=argparse.ArgumentParser()
     for name in ['coarse','local','piano','questions','native-flow','out']:ap.add_argument('--'+name,type=Path,required=True)
+    ap.add_argument('--peak-threshold',type=float,default=.5)
     a=ap.parse_args();a.out.mkdir(parents=True,exist_ok=True);report=a.out/'report';report.mkdir(exist_ok=False)
+    if not 0<=a.peak_threshold<=1:ap.error('peak-threshold must lie in [0,1]')
     start=time.perf_counter();cv2.setNumThreads(4)
     cfg=read(a.coarse/'config.json');lc=read(a.local/'config.json');pc=read(a.piano/'config.json')
     assert cfg['candidate_fps']==1 and lc['candidate_fps']==pc['candidate_fps']==4
@@ -145,11 +147,11 @@ def main():
     sharp=np.asarray([c['sharpness'] for c in cand]);quality=.5+.5*sharp/(sharp+max(np.median(sharp),1))
     allpeaks=[];alltracks={};discovery_start=time.perf_counter();trackcache=a.out/'track-cache';trackcache.mkdir(exist_ok=True);suppressed_peaks={}
     for obj in qs['objects']:
-        signature=hashlib.sha256(json.dumps([[r['source_frame_index'],[b for b in r['detections'] if b['object']==obj]] for r in coarse],sort_keys=True).encode()).hexdigest();cp=trackcache/(slug(obj)+'.json')
+        signature=hashlib.sha256(json.dumps({'hardcut':a.peak_threshold,'rows':[[r['source_frame_index'],[b for b in r['detections'] if b['object']==obj]] for r in coarse]},sort_keys=True).encode()).hexdigest();cp=trackcache/(slug(obj)+'.json')
         if cp.exists() and read(cp)['signature']==signature:
             cached=read(cp);peaks,tracks=cached['peaks'],cached['tracks']
         else:
-            peaks,tracks=peak_tracks(coarse,obj,index,propagate);save(cp,{'signature':signature,'peaks':peaks,'tracks':tracks})
+            peaks,tracks=peak_tracks(coarse,obj,index,propagate,hardcut=a.peak_threshold);save(cp,{'signature':signature,'peaks':peaks,'tracks':tracks})
         alltracks[obj]=tracks;peaks,suppressed=merge_peak_fragments(peaks,times);suppressed_peaks[obj]=suppressed
         for p in peaks:p['peak_id']=f'{slug(obj)}-p{len([x for x in allpeaks if x["object"]==obj])+1:02d}';allpeaks.append(p)
         print('PEAKS',obj,len(peaks),'all candidate tracks',len(tracks),flush=True)
@@ -216,7 +218,7 @@ def main():
         save(folder/'input-frames.json',{'question':q,'frames':[{'source_frame_index':cand[k]['source_frame_index'],'timestamp_s':float(times[k]),'image':'../frames/'+f'{cand[k]["source_frame_index"]:07d}.jpg','sha256':cand[k]['frame_sha256'],'used_by_peaks':[p['peak_id'] for p in ps if any(r['frame']==k for r in p['selected'])]} for k in unique],'chronological':True,'deduplicated':True,'contains_unverified_context':record['context_fallback_slots']>0})
         fig,axs=plt.subplots(len(q['objects']),1,figsize=(14,2.6*len(q['objects'])),squeeze=False,sharex=True)
         for j,o in enumerate(q['objects']):
-            ax=axs[j,0];ys=[max((b['score'] for b in row['detections'] if b['object']==o),default=0) for row in coarse];ts=[r['timestamp_s'] for r in coarse];ax.plot(ts,ys,color='#687a95',lw=1,label='1fps DINO score');ax.axhline(.5,color='#aaaaaa',ls='--',lw=.8)
+            ax=axs[j,0];ys=[max((b['score'] for b in row['detections'] if b['object']==o),default=0) for row in coarse];ts=[r['timestamp_s'] for r in coarse];ax.plot(ts,ys,color='#687a95',lw=1,label='1fps DINO score');ax.axhline(a.peak_threshold,color='#aaaaaa',ls='--',lw=.8)
             for n,p in enumerate(byobj[o]):
                 ax.scatter([p['anchor_time_s']],[p['anchor']['score']],color='#ce3325',marker='^',s=45);ax.text(p['anchor_time_s'],min(.95,p['anchor']['score']+.07),p['peak_id'].split('-p')[-1],fontsize=8)
                 for r in p['selected']:ax.plot([r['timestamp_s']]*2,[-.12,-.03],color='#d68c19' if r['status']=='context_fallback' else '#19865b',lw=1.5)
@@ -231,7 +233,7 @@ def main():
             for col,r in enumerate(p['selected']):
                 im=Image.open(report/r['image']).resize((320,240));thumb.paste(im,(320*col,100+j*300));dr.text((320*col+5,342+j*300),f'{r["timestamp_s"]:.2f}s '+r['status'],font=small,fill='#a33322' if r['status']=='context_fallback' else 'black')
         thumb.save(folder/'all-peaks.jpg',quality=91)
-    config={'version':'bvb_v3 adaptive peaks4 prototype','scene':qs['scene'],'discovery_fps':1,'local_candidate_fps':4,'frames_per_peak':4,'hardcut':.5,'association_detection_min_score':.25,'association_iou':.2,'max_detection_gap_s':2,'local_radius_s':4,'local_unconfirmed_gap_s':1,'local_min_spacing_s':.23,'peak_definition':'Maximum 1fps score per flow-linked visibility tracklet, followed by 6s temporal nonmaximum suppression across fragments; simultaneous disjoint anchor boxes survive. Grouped waves are not unique instances','peak_min_separation_s':6,'fallback':'If category has no >=0.5 1fps detection, retain only its best 1fps tracklet/anchor; fill missing local neighbors as explicitly unverified context','flow':'Local Farneback at 320x240 on 4fps adjacent JPEG frames; ROI p75 / sqrt(box area), integrated outward. Global term reuses native-adjacent CUDA Farneback p75/400 integral. Signed coordinate = 0.75 ROI + 0.25 global. Selection uses distance to already selected coordinates, capped 0.75, times sharpness quality and (0.5+0.5*score).','limitations':['Tracklets are not physical instances; cross-gap re-ID is absent. Temporal NMS may group different instances visible at nearby times; only simultaneous disjoint anchor boxes are protected.','No automatic semantic verification; only keyboard is user-resolved to piano. Other known false positives retained.','Flow path length is not proof of 3D baseline or geometric overlap; camera shake can contribute.','Exactly four distinct frames per peak; low-change pairs and unverified context explicitly flagged.','No SAM2, no LingBot, no extra spatial connection frames, no automatic difficulty budget in this fixed-four-per-peak experiment.'],'source_sha256':{str(p):sha(p) for p in [a.coarse/'detections.jsonl',a.local/'detections.jsonl',a.piano/'detections.jsonl',a.native_flow,a.questions,Path(__file__)]}}
+    config={'version':'bvb_v3 adaptive peaks4 prototype','scene':qs['scene'],'discovery_fps':1,'local_candidate_fps':4,'frames_per_peak':4,'hardcut':a.peak_threshold,'association_detection_min_score':.25,'association_iou':.2,'max_detection_gap_s':2,'local_radius_s':4,'local_unconfirmed_gap_s':1,'local_min_spacing_s':.23,'peak_definition':'Maximum 1fps score per flow-linked visibility tracklet, followed by 6s temporal nonmaximum suppression across fragments; simultaneous disjoint anchor boxes survive. Grouped waves are not unique instances','peak_min_separation_s':6,'fallback':f'If category has no >={a.peak_threshold:g} 1fps detection, retain only its best 1fps tracklet/anchor; fill missing local neighbors as explicitly unverified context','flow':'Local Farneback at 320x240 on 4fps adjacent JPEG frames; ROI p75 / sqrt(box area), integrated outward. Global term reuses native-adjacent CUDA Farneback p75/400 integral. Signed coordinate = 0.75 ROI + 0.25 global. Selection uses distance to already selected coordinates, capped 0.75, times sharpness quality and (0.5+0.5*score).','limitations':['Tracklets are not physical instances; cross-gap re-ID is absent. Temporal NMS may group different instances visible at nearby times; only simultaneous disjoint anchor boxes are protected.','No automatic semantic verification; only keyboard is user-resolved to piano. Other known false positives retained.','Flow path length is not proof of 3D baseline or geometric overlap; camera shake can contribute.','Exactly four distinct frames per peak; low-change pairs and unverified context explicitly flagged.','No SAM2, no LingBot, no extra spatial connection frames, no automatic difficulty budget in this fixed-four-per-peak experiment.'],'source_sha256':{str(p):sha(p) for p in [a.coarse/'detections.jsonl',a.local/'detections.jsonl',a.piano/'detections.jsonl',a.native_flow,a.questions,Path(__file__)]}}
     save(report/'config.json',config);save(report/'peaks.json',allpeaks)
     summary={'questions':questions,'peak_count':len(allpeaks),'slots':len(allpeaks)*4,'unique_source_frames':len(selected_unique),'context_fallback_slots':sum(p['context_fallback_count'] for p in allpeaks),'low_score_peaks':sum(p['fallback'] for p in allpeaks),'low_novelty_peak_count':sum(bool(p['low_novelty_pairs']) for p in allpeaks),'object_peak_counts':{o:len(ps) for o,ps in byobj.items()},'discovery_seconds':discovery_seconds,'local_processing_seconds':time.perf_counter()-start,'piano_detector':read(a.piano/'detector-info.json'),'no_qa_performed':True};save(report/'summary.json',summary)
     links=''.join(f'<tr><td><a href="{r["folder"]}/index.html">Q{r["question"]["id"]}</a></td><td>{html.escape(", ".join(r["question"]["objects"]))}</td><td>{r["peak_count"]}</td><td>{r["slots"]}</td><td>{r["unique_frames"]}</td><td>{r["context_fallback_slots"]}</td><td><a href="{r["folder"]}/all-peaks.jpg">全部帧组图</a> · <a href="{r["folder"]}/distribution.png">分布图</a></td></tr>' for r in questions)

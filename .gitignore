@@ -13,3 +13,11 @@ _dev/
 *.mp4
 *.zip
 *.log
+
+# Method source only; generated assets remain ignored.
+!methods/adaptive_frame_selection/scripts/assets/
+!methods/adaptive_frame_selection/scripts/assets/*.py
+!methods/adaptive_frame_selection/scripts/assets/interface.txt
+methods/adaptive_frame_selection/results/
+methods/adaptive_frame_selection/deliverables/
+methods/adaptive_frame_selection/.env*

@@ -1,5 +1,7 @@
 # Question-conditioned adaptive frame selection
 
+现已加入 **V5 外观＋位姿聚类 → 每组最简重构 → 共享坐标场景合并**。完整依赖、输入协议、命令和限制见 [RECONSTRUCTION.md](RECONSTRUCTION.md)，V5 选择规则见 [bvb_v5/README.md](bvb_v5/README.md)。下文保留 V3/V4 接口说明。
+
 仅包含方法实现、测试、依赖与说明。没有实验结果、样例视频、图像、特征/位姿缓存、模型权重或生成网页。
 
 ## 方法组成
@@ -59,4 +61,4 @@ python -m bvb_v4.instance_sampling \
 
 当前 CLI 延续既有 V3/V4 中间文件结构；部分旧工具仍含场景路径、图像尺寸及采样数量假设。报告脚本使用 macOS 字体路径，迁移到其他平台或新数据需调整。该代码并非已验证适配任意视频的一键流水线。
 
-第三方问题解析函数的许可证和来源记录位于 `scripts/object_sampling/vendor/`；其中唯一的 JSON 是源码来源元数据，不是实验结果。
+第三方问题解析函数的许可证和来源记录位于 `scripts/object_sampling/vendor/`；V5 来源记录位于 `bvb_v5/UPSTREAM.json`。JSON 仅用于源码来源元数据，不包含实验结果。

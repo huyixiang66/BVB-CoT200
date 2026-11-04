@@ -1,0 +1,88 @@
+{
+  "repository": "https://github.com/huyixiang66/BVB-CoT200",
+  "branch": "pose-clustering-counting",
+  "commit": "8c97b83a2d2492418442d97c4382eb0afc220d81",
+  "imported_files": [
+    {
+      "source": "methods/adaptive_frame_selection/bvb_v4/__init__.py",
+      "destination": "__init__.py",
+      "upstream_sha256": "82ef72e7ca8f633a34bb4fafc8df5a3ec4eca86a97d66cac66957fe6841fa700"
+    },
+    {
+      "source": "methods/adaptive_frame_selection/bvb_v4/annotate_delivery.py",
+      "destination": "annotate_delivery.py",
+      "upstream_sha256": "e87e6784cf64a3be49adb260dc4d92481dacd4a02799478906a70333f4d67dda"
+    },
+    {
+      "source": "methods/adaptive_frame_selection/bvb_v4/candidate_gallery.py",
+      "destination": "candidate_gallery.py",
+      "upstream_sha256": "daf8c91c25a9622e14e7a53175a96caf852e86f557b42b5387d83e128377eb5d"
+    },
+    {
+      "source": "methods/adaptive_frame_selection/bvb_v4/dinov2_appearance.py",
+      "destination": "dinov2_appearance.py",
+      "upstream_sha256": "703e0f28abf5e7c909c5014f2b9bd17e7a252424773a591b387db8af761a8cd7"
+    },
+    {
+      "source": "methods/adaptive_frame_selection/bvb_v4/instance_report.py",
+      "destination": "instance_report.py",
+      "upstream_sha256": "104793fb27e6c8063af7bc1c011c12f518b4cf008c3f0498790f312cf2071b8c"
+    },
+    {
+      "source": "methods/adaptive_frame_selection/bvb_v4/instance_sampling.py",
+      "destination": "instance_sampling.py",
+      "upstream_sha256": "30640a84cf9d8cce1d48174985d1634b17710fca8dc92a722d43986b1d1c61d8"
+    },
+    {
+      "source": "methods/adaptive_frame_selection/bvb_v4/plot_match_scores.py",
+      "destination": "plot_match_scores.py",
+      "upstream_sha256": "0cbbc9152382d74606b01e96b4cc70bc9338c40d2e8e1936a7b5dd469b9aa7f5"
+    },
+    {
+      "source": "methods/adaptive_frame_selection/bvb_v4/pose_association.py",
+      "destination": "pose_association.py",
+      "upstream_sha256": "09abfa14f8f95c65f01922e6a009d84862cea26eaceae9c0a7a8fa2e22904662"
+    },
+    {
+      "source": "methods/adaptive_frame_selection/bvb_v4/report.py",
+      "destination": "report.py",
+      "upstream_sha256": "9f3bb06c9988af0d10bfaec07561cfb1501e40e02668b8816a2f3f3db57a89e1"
+    },
+    {
+      "source": "methods/adaptive_frame_selection/bvb_v4/select_frames.py",
+      "destination": "select_frames.py",
+      "upstream_sha256": "d181f547a24b81dca9cb1da06e159d1341e16e2bd1dba77fe251e3146ef1edd0"
+    },
+    {
+      "source": "methods/adaptive_frame_selection/bvb_v4/test_dinov2_appearance.py",
+      "destination": "test_dinov2_appearance.py",
+      "upstream_sha256": "90726386043f70c5cdd782fc3743d0461bf59bb81fea7caa8fa3c15b644ba732"
+    },
+    {
+      "source": "methods/adaptive_frame_selection/bvb_v4/test_instance_sampling.py",
+      "destination": "test_instance_sampling.py",
+      "upstream_sha256": "42979b788dd62acac74f4d521f855854c865d401ce74e0b507df4e69de3d5db0"
+    },
+    {
+      "source": "methods/adaptive_frame_selection/bvb_v4/test_pose_association.py",
+      "destination": "test_pose_association.py",
+      "upstream_sha256": "0e1631d7c22d772a3c6a35e21d3ef2d4396a7e788482905c0b7ac932e0d9c456"
+    },
+    {
+      "source": "methods/adaptive_frame_selection/bvb_v4/test_selection.py",
+      "destination": "test_selection.py",
+      "upstream_sha256": "fc912ed18218cbdf1ad4292bfcff7f3af78787e71eca1590986e05ac31916cd4"
+    },
+    {
+      "source": "scripts/counting_views.py",
+      "destination": "counting_views.py",
+      "upstream_sha256": "c4b4627be87f74135911a1c8ea89a8a6651c8a8de40fe22d18bfffd63086ff87"
+    }
+  ],
+  "adaptations": [
+    "Python package renamed bvb_v4 to bvb_v5",
+    "Version marker v5-pose-clustering",
+    "V5 defaults and pose-aware reporting tracked locally"
+  ],
+  "note": "Source provenance at import; local adaptations are tracked in Git. No experiment results included."
+}

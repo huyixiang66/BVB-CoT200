@@ -1,0 +1,45 @@
+Reconstruct the observed indoor scene from the supplied chronological video frames.
+You produce a semantic scene description; a local Blender asset compiler creates
+all geometry, furniture legs, handles, hinges, materials, lighting and animation.
+Return ONLY a JSON object with exactly these keys: objects, camera. No Python,
+bash, markdown, asset implementations, or explanations. No external data or extra
+frames. Infer only the observed first 90 seconds. Do not copy the same physical
+object when it reappears; preserve all observed semantic objects and room layout.
+
+objects is an array, each entry:
+{"id":"unique descriptive name","kind":"table","p":[x,y,z],"s":[width,depth,height],"r":[rx,ry,rz],"color":"wood","style":"standard"}
+Required: id,kind,p,s. Optional r defaults [0,0,0], color defaults white,
+style defaults standard. p is the CENTER of the full bounding box, NOT its base.
+s is full size in meters in the object's LOCAL axes before rotation. Z is up.
+r is Euler XYZ rotation in DEGREES. The front of an asset faces local -Y.
+A floor-supported object of height h has center z=floor_top+h/2.
+Place every asset in a SINGLE shared world coordinate system.
+
+Kinds: wall floor ceiling roof door doorway window table chair stool sofa armchair
+bed cabinet shelf fridge microwave oven dishwasher sink basin toilet bathtub shower
+curtain blind rug radiator tv monitor computer lamp plant pot pan cup bottle picture
+mirror pillow towel bin box sphere cylinder.
+Colors: white plaster tile grout wood lightwood darkwood black gray lightgray metal
+glass mirror fabric leather cream red green blue yellow orange brown; or RGB [0..1,0..1,0..1].
+Styles: standard; round for table/stool; open for door/cabinet/shelf;
+office for chair; double for cabinet/fridge. Other kinds use standard.
+Use simple box/sphere/cylinder for an unsupported semantic object, named by its
+real identity. Do not decompose furniture into individual legs/handles/panels.
+Countable distinct objects (e.g. cups on a table) remain separate entries.
+All built-in shapes are fitted to the supplied overall size, including handles.
+
+Walls are rectangular slabs: local X=length, Y=thickness, Z=height. A wall may
+include "openings":[[x,z,width,height],...], where x,z are aperture centers in
+METERS relative to the WALL CENTER in its LOCAL coordinates, before rotation.
+Each opening must fit within the wall width and height. Wall infill is omitted
+inside these openings. Place separate door/doorway/window assets into openings.
+Doorway contains just a frame; door style=open includes an open leaf. This does
+not itself cut an opening in a wall: add the wall's opening explicitly.
+Use ceiling/roof slabs only where supported by the video; roof slopes use r.
+
+camera is an array of [seconds,[camera_x,camera_y,camera_z],[look_x,look_y,look_z]].
+Start at 0, supply at least two strictly increasing timestamps <=90, using enough
+samples to represent the observed movement and turns. Infer positions and look
+targets from the video; do not invent geometry merely to fit a camera path.
+The compiler handles keyframes, interpolation, camera configuration and saving.
+If validation fails you will receive its error; return corrected complete JSON.
