@@ -2,6 +2,8 @@
 
 版本 **6.0.0**。基于 [pose-clustering-counting 分支](https://github.com/huyixiang66/BVB-CoT200/tree/pose-clustering-counting)的固定提交 `9a9c0a0b5e9342b2ca7d82cfa747d884d48dd232`，独立于现有 `bvb_v5`。
 
+本分支在已有 V6 基础上增加[逐题保留策略](QUESTION_POLICY.md)与[可选的多帧联合校正](MULTIFRAME_ALIGNMENT.md)。多帧校正是实验性候选，不更改默认合并行为，也尚未证明能改善 QA 或几何准确性。
+
 来源与导出文件哈希见 [UPSTREAM.json](UPSTREAM.json)。此发布只包含可运行方法、测试、依赖和说明，不包含上游实验快照或本地结果。所有命令在 `methods/adaptive_frame_selection` 下运行，Python 可使用已安装依赖的环境。
 
 ## 流程与 V5 的区别
@@ -107,20 +109,15 @@ python scripts/validate_v6_object_clustering.py --source /path/to/object-cluster
 ```bash
 python -m bvb_v6.semantic_review prepare --selection /path/to/object-clusters/selection.json \
   --out /path/to/review --arm roi_robust
-python -m bvb_v6.semantic_review submit --out /path/to/review
+python -m bvb_v6.semantic_review submit --out /path/to/review --limit 1 --max-tokens 4096
 python -m bvb_v6.coverage prepare --source /path/to/review
-python -m bvb_v6.coverage submit --source /path/to/review
+python -m bvb_v6.coverage submit --source /path/to/review --limit 1 --max-tokens 4096
 python scripts/report_semantic_review.py --source /path/to/review --delivery /path/to/gallery
 ```
 
-请在本地 `.env` 配置 `LLM_API_KEY`，也可以使用环境变量。审核和对比使用官方 API，模型 `gpt-6-astra`、high；只有 submit 阶段产生 API 请求。不要提交凭据。**当前审核 prompt 的 keyboard 消歧固定为 musical keyboard/piano，沿用本场景解释；用于其他场景前应根据语义调整并重新 prepare，旧请求哈希不会通用。**
+请在本地 `.env` 配置 `LLM_API_KEY`，也可以使用环境变量。审核和对比使用官方 API，模型 `gpt-6-astra`、high；只有 submit 阶段产生 API 请求。不要提交凭据。新审核 prompt 对 keyboard 保留电脑键盘和钢琴键盘两种可能，按题目与画面判断；既有审核请求保持原 prompt 哈希，不静默覆盖。上例每次最多提交一个请求；未显式限制的语义审核可能提交全部待处理请求，对比提交默认一次一个。
 
-语义聚合：任一代表证据 match 就 accept；全部明确误检才 reject；其他为 uncertain。随后独立决定是否选用：
-
-- 有 accept：保留所有 accept。
-- 某类唯一聚类：保留，标记 `only_candidate`。
-- 多组但无 accept：优先让 Astra 对比 uncertain；没有 uncertain 则比较全部候选，保留相对最佳组，标记 `comparison_best`。
-- 实际没有候选：明确记录缺失，不能凭空保证检测到目标；该题 prepare 被阻止。
+语义聚合：任一代表证据 match 就 accept；全部明确误检才 reject；其他为 uncertain。随后按[逐题保留策略](QUESTION_POLICY.md)独立决定是否选用：单实例题若多个候选通过，需要比较选出一组；多实例题保留已通过和不确定的候选；缺失、待审核或明确误检不伪造为有效目标。需要时间、轨迹等补充证据的题默认不会当作完整静态场景。未知题型保留兼容处理，但不代表该题已被支持。
 
 原始判断保留，补选不等于确认物体身份。排序须完整、赢家须位于候选中；无有效比较结果不会自动编造赢家。每题每类的覆盖统计与选择记录输出到 `coverage-summary.json` 和 `reviewed-selection.json`。
 

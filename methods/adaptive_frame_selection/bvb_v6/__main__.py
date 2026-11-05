@@ -32,6 +32,8 @@ def main():
     prep.add_argument('--arm', help='Defaults to the reviewed selection_arm (semantic_selected with coverage), otherwise v6')
     prep.add_argument('--reference-cameras', type=Path)
     prep.add_argument('--frame-cap', type=int, default=8)
+    prep.add_argument('--allow-incomplete-evidence', action='store_true',
+                      help='Prepare a static-context draft for supplemental-evidence questions')
     call = sub.add_parser('submit', help='Explicit paid model requests; serial and fail-fast')
     call.add_argument('--out', type=Path, required=True)
     call.add_argument('--provider', choices=['openai','boyue'], default='openai')
@@ -58,6 +60,10 @@ def main():
             raise ValueError('Reviewed selections must use '+safe_arm+'; original hypotheses are audit-only')
         if policy.get('coverage_required') and not row.get('coverage_complete'):
             raise ValueError('Category coverage is incomplete; finish comparisons or obtain missing candidates first')
+        requirements = row.get('retention_policy')
+        if requirements and requirements.get('category') == 'supplemental' and not args.allow_incomplete_evidence:
+            raise ValueError('This question requires temporal or other supplemental evidence; '
+                             'use --allow-incomplete-evidence only for a static-context draft')
         groups = row['arms'][arm]
         if not groups:
             raise ValueError('No observed target groups; provide context explicitly for global questions')
@@ -65,10 +71,18 @@ def main():
             raise ValueError('frame-cap must be at least four')
         prepare(args.out.resolve(), row['question'], groups, None, args.frame_cap,
                 args.reference_cameras, cache=args.cache.resolve(), poses=args.poses.resolve())
+        if requirements:
+            from .reconstruction import write
+            manifest_path=args.out.resolve()/'manifest.json';manifest=read(manifest_path)
+            manifest['retention_policy']=requirements
+            manifest['supplemental_evidence_verified']=False
+            write(manifest_path,manifest)
     elif args.command == 'submit':
-        from dotenv import dotenv_values
-        config = {**dotenv_values(args.env_file), **os.environ}
         key_name = args.key_env or ('LLM_API_KEY' if args.provider == 'openai' else 'BOYUE_API_KEY')
+        config = dict(os.environ)
+        if not config.get(key_name) or (args.provider == 'boyue' and not config.get('BOYUE_BASE_URL')):
+            from dotenv import dotenv_values
+            config = {**dotenv_values(args.env_file), **config}
         key = config.get(key_name)
         if not key:
             raise ValueError('Missing credential variable: '+key_name)

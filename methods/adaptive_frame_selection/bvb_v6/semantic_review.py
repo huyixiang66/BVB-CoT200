@@ -33,6 +33,10 @@ Review every evidence_id exactly once. Give a short Chinese reason and the actua
 object, and return the required JSON. Do not infer counts, dimensions, or QA answers.
 This is category verification, not proof that all observations depict the same instance.
 '''
+PROMPT_LEGACY = PROMPT
+PROMPT = PROMPT.replace(
+    'Keyboard in this scene is user-resolved as musical keyboard/piano, not a computer keyboard.',
+    'Keyboard may mean a computer keyboard or a musical keyboard; use the question and visual evidence to decide, and mark uncertain when ambiguous.')
 SCHEMA = {'type':'object','properties':{'evidence':{'type':'array','items':{
     'type':'object','properties':{'evidence_id':{'type':'string'},
     'verdict':{'type':'string','enum':['match','false_positive','uncertain']},
@@ -40,17 +44,22 @@ SCHEMA = {'type':'object','properties':{'evidence':{'type':'array','items':{
     'required':['evidence_id','verdict','observed_object','reason'],'additionalProperties':False}}},
     'required':['evidence'],'additionalProperties':False}
 
-def read(p):return json.loads(Path(p).read_text())
+def read(p):
+    path=Path(p)
+    try:return json.loads(path.read_text(encoding='utf-8-sig'))
+    except UnicodeDecodeError:return json.loads(path.read_text())
 def write(p,v):
     p=Path(p);p.parent.mkdir(parents=True,exist_ok=True)
-    p.write_text(json.dumps(v,ensure_ascii=False,indent=2)+'\n')
+    p.write_text(json.dumps(v,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
 def digest(v):return hashlib.sha256(json.dumps(v,sort_keys=True,ensure_ascii=False).encode()).hexdigest()
 def sha(p):return hashlib.sha256(Path(p).read_bytes()).hexdigest()
 
 def verify_input(j):
     unsigned={k:v for k,v in j.items() if k!='request_hash'}
-    if digest(dict(job=unsigned,prompt=PROMPT,schema=SCHEMA,model=MODEL))!=j['request_hash']:
-        raise ValueError('Frozen review request changed')
+    for prompt in (PROMPT,PROMPT_LEGACY):
+        if digest(dict(job=unsigned,prompt=prompt,schema=SCHEMA,model=MODEL))==j['request_hash']:
+            return prompt
+    raise ValueError('Frozen review request changed')
 
 def aggregate(rows):
     labels={r['verdict'] for r in rows}
@@ -119,7 +128,7 @@ def prepare(selection,out,arm='roi_robust'):
             assert sha(src)==r['frame_sha256']
             eid=f'e{i+1:03d}'
             evidence.append(dict(**r,evidence_id=eid,**clean_images(src,r['box_xyxy'],folder,eid)))
-        j['evidence']=evidence;j['intended_category']='musical keyboard / piano' if j['object']=='keyboard' else j['object']
+        j['evidence']=evidence;j['intended_category']=j['object']
         j['image_policy']='clean-full-and-context-crop-v2'
         j['request_hash']=digest(dict(job=j,prompt=PROMPT,schema=SCHEMA,model=MODEL))
         write(folder/'input.json',j)
@@ -132,7 +141,7 @@ def prepare(selection,out,arm='roi_robust'):
 def request_job(folder,key,max_tokens=8192):
     from openai import OpenAI
     folder=Path(folder);j=read(folder/'input.json');ledger=folder/'request.json'
-    verify_input(j)
+    prompt=verify_input(j)
     if ledger.exists():
         previous=read(ledger)
         if previous['request_hash']!=j['request_hash']:raise ValueError('Review cache does not match inputs')
@@ -154,11 +163,11 @@ def request_job(folder,key,max_tokens=8192):
                 content.append({'type':'image_url','image_url':{'detail':'high','url':'data:'+mime+';base64,'+base64.b64encode(path.read_bytes()).decode()}})
         client=OpenAI(api_key=key,base_url='https://api.openai.com/v1',timeout=600,max_retries=0)
         response=client.chat.completions.create(model=MODEL,reasoning_effort='high',max_completion_tokens=max_tokens,store=False,
-             messages=[{'role':'system','content':PROMPT},{'role':'user','content':content}],
+             messages=[{'role':'system','content':prompt},{'role':'user','content':content}],
              response_format={'type':'json_schema','json_schema':{'name':'cluster_semantic_audit','strict':True,'schema':SCHEMA}})
         choice=response.choices[0];record.update(status='received',response_id=response.id,returned_model=response.model,
              usage=response.usage.model_dump() if response.usage else None,finish_reason=choice.finish_reason)
-        (folder/'response.txt').write_text(choice.message.content or '')
+        (folder/'response.txt').write_text(choice.message.content or '',encoding='utf-8')
         if choice.finish_reason!='stop' or choice.message.refusal:raise ValueError('Incomplete/refused API response')
         result=validate_reply(json.loads(choice.message.content),[e['evidence_id'] for e in j['evidence']])
         if j['missing_peak_ids'] and result['status']!='accept':result['status']='uncertain'
@@ -227,20 +236,24 @@ def reconstruction_gate(folder):
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('stage',choices=['prepare','submit','export'])
     p.add_argument('--selection',type=Path);p.add_argument('--out',type=Path,required=True);p.add_argument('--arm',default='roi_robust')
-    p.add_argument('--limit',type=int,default=0);p.add_argument('--env-file',type=Path,default=Path(__file__).resolve().parents[1]/'.env')
+    p.add_argument('--limit',type=int,default=0);p.add_argument('--max-tokens',type=int,default=8192)
+    p.add_argument('--env-file',type=Path,default=Path(__file__).resolve().parents[1]/'.env')
     a=p.parse_args()
     if a.stage=='prepare':
         if not a.selection:p.error('--selection required')
         prepare(a.selection,a.out,a.arm)
     elif a.stage=='export':export(a.out)
     else:
-        from dotenv import dotenv_values
-        key=os.environ.get('LLM_API_KEY') or dotenv_values(a.env_file).get('LLM_API_KEY')
+        key=os.environ.get('LLM_API_KEY')
+        if not key:
+            from dotenv import dotenv_values
+            key=dotenv_values(a.env_file).get('LLM_API_KEY')
         if not key:raise ValueError('Missing LLM_API_KEY')
-        m=read(a.out/'manifest.json');assert m['prompt_sha256']==digest(PROMPT) and m['schema_sha256']==digest(SCHEMA)
+        if a.limit<0 or a.max_tokens<1:raise ValueError('limit must be non-negative and max-tokens must be positive')
+        m=read(a.out/'manifest.json');assert m['prompt_sha256'] in [digest(PROMPT),digest(PROMPT_LEGACY)] and m['schema_sha256']==digest(SCHEMA)
         pending=[gid for gid in m['jobs'] if not (a.out/'jobs'/gid/'request.json').exists()]
         for gid in pending[:a.limit or None]:
-            r=request_job(a.out/'jobs'/gid,key);print(json.dumps(dict(review_id=gid,status=r['status'],usage=r['usage'])),flush=True)
+            r=request_job(a.out/'jobs'/gid,key,max_tokens=a.max_tokens);print(json.dumps(dict(review_id=gid,status=r['status'],usage=r['usage'])),flush=True)
             export(a.out)
             if r['status'] not in ['reviewed','no_evidence']:break
         export(a.out)
