@@ -21,3 +21,8 @@ _dev/
 methods/adaptive_frame_selection/results/
 methods/adaptive_frame_selection/deliverables/
 methods/adaptive_frame_selection/.env*
+
+# V6 asset compiler sources (not generated assets).
+!methods/adaptive_frame_selection/bvb_v6/runtime/assets/
+!methods/adaptive_frame_selection/bvb_v6/runtime/assets/*.py
+!methods/adaptive_frame_selection/bvb_v6/runtime/assets/interface.txt
