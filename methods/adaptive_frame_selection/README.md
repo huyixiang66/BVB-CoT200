@@ -1,5 +1,7 @@
 # Question-conditioned adaptive frame selection
 
+新增 [BVB V8：整题目标重构与整合时实例选择](bvb_v8/README.md)。原有 V3–V6 入口保留。
+
 现已加入 **V5 外观＋位姿聚类 → 每组最简重构 → 共享坐标场景合并**。完整依赖、输入协议、命令和限制见 [RECONSTRUCTION.md](RECONSTRUCTION.md)，V5 选择规则见 [bvb_v5/README.md](bvb_v5/README.md)。下文保留 V3/V4 接口说明。
 
 仅包含方法实现、测试、依赖与说明。没有实验结果、样例视频、图像、特征/位姿缓存、模型权重或生成网页。

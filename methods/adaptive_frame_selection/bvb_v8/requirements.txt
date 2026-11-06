@@ -1,0 +1,4 @@
+-r ../bvb_v5/requirements.txt
+scipy>=1.11,<2
+openai>=1.0
+python-dotenv>=1.0

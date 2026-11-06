@@ -1,0 +1,16 @@
+{
+  "upstream_commit": "011ccf10acfe7facb99456ccd222f31d2c51fedf",
+  "upstream_namespace": "bvb_v6",
+  "export_namespace": "bvb_v8",
+  "version": "8.1.0",
+  "changes": [
+    "question-wide target lists",
+    "direct physical support context only",
+    "walls and floor retained",
+    "final question-wide Astra instance selection",
+    "single-instance limits enforced at integration",
+    "preserve accepted observation groups until integration",
+    "no default API completion cap"
+  ],
+  "data_or_results_included": false
+}
