@@ -132,3 +132,7 @@ Each question is forked independently from the same parent via `experimentalPred
 - The JSON records `usage: null` when usage is unavailable. A failure stops the run and is recorded without automatic retry; any unreported consumption remains unknown. `model_requested` is the selected ID, not an independently verified server model receipt. Assess total workflow costs separately, including construction and failures.
 
 The code does not include the experimental inputs, videos, `.blend` files, images, credentials or model outputs. Do not publish real datasets or private local paths without checking their license and privacy requirements.
+
+## 另一种接入：CLIProxyAPI 本机服务
+
+参见 [CLIProxyAPI 本机方案](CLI-PROXY.md)。此方案曾真实测试文字和单图，但没有证明独立 fork 和图片只传一次。
