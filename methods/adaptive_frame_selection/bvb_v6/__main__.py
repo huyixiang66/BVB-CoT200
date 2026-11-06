@@ -86,7 +86,7 @@ def main():
         key = config.get(key_name)
         if not key:
             raise ValueError('Missing credential variable: '+key_name)
-        url = 'https://api.openai.com/v1' if args.provider == 'openai' else config.get('BOYUE_BASE_URL')
+        url = config.get('LLM_API_BASE', 'https://api.openai.com/v1') if args.provider == 'openai' else config.get('BOYUE_BASE_URL')
         if not url:
             raise ValueError('Missing BOYUE_BASE_URL')
         if args.limit < 1 or args.max_tokens < 1:

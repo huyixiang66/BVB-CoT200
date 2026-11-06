@@ -98,7 +98,7 @@ def submit(root,key,limit=1,max_tokens=4096):
                         path=root/'jobs'/gid/e[kind];assert sha(path)==e[kind+'_sha256']
                         mime='image/png' if path.suffix=='.png' else 'image/jpeg'
                         content.append({'type':'image_url','image_url':{'detail':'high','url':'data:'+mime+';base64,'+base64.b64encode(path.read_bytes()).decode()}})
-            client=OpenAI(api_key=key,base_url='https://api.openai.com/v1',timeout=600,max_retries=0)
+            client=OpenAI(api_key=key,base_url=os.environ.get('LLM_API_BASE','https://api.openai.com/v1'),timeout=600,max_retries=0)
             response=client.chat.completions.create(model=MODEL,reasoning_effort='high',max_completion_tokens=max_tokens,store=False,
                  messages=[{'role':'system','content':PROMPT},{'role':'user','content':content}],
                  response_format={'type':'json_schema','json_schema':{'name':'relative_cluster_selection','strict':True,'schema':SCHEMA}})

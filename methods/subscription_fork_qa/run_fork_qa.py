@@ -76,9 +76,12 @@ class AppServer:
             raise RuntimeError(f"{method}_error_{response['error'].get('code', 'unknown')}")
         return response["result"]
 
-    def turn(self, thread_id, content):
+    def turn(self, thread_id, content, effort="low", output_schema=None):
         start = time.monotonic()
-        response = self.call("turn/start", {"threadId": thread_id, "input": content, "effort": "low"})
+        params = {"threadId": thread_id, "input": content, "effort": effort}
+        if output_schema is not None:
+            params["outputSchema"] = output_schema
+        response = self.call("turn/start", params)
         turn_id = response["turn"]["id"]
         done = self.wait(lambda x: x.get("method") == "turn/completed" and
                          x.get("params", {}).get("turn", {}).get("id") == turn_id)
@@ -95,6 +98,9 @@ class AppServer:
             item = params.get("item", {})
             if event.get("method") == "item/completed" and params.get("turnId") == turn_id and item.get("type") == "agentMessage":
                 answers.append(item.get("text", ""))
+        # Discard completed-turn notifications, including any inline image inputs.
+        self.pending[:] = [event for event in self.pending if event.get("params", {}).get("turnId") != turn_id
+                           and event.get("params", {}).get("turn", {}).get("id") != turn_id]
         return {"status": status, "answer": "\n".join(answers), "usage": usage,
                 "seconds": round(time.monotonic() - start, 2)}
 
@@ -118,6 +124,15 @@ def codex_command(executable):
             raise RuntimeError("node_not_found")
         return [node, executable]
     return [executable]
+
+
+def check_codex_version(executable):
+    version = subprocess.run(codex_command(executable) + ["--version"], capture_output=True,
+                             text=True, encoding="utf-8", errors="replace", timeout=10)
+    match = re.search(r"(\d+)\.(\d+)\.(\d+)", version.stdout)
+    if version.returncode != 0 or not match or tuple(map(int, match.groups())) < (0, 167, 0):
+        raise RuntimeError("codex_0.167.0_or_newer_required")
+    return match.group(0)
 
 
 def main():
@@ -148,12 +163,7 @@ def main():
 
     server = None
     try:
-        version = subprocess.run(codex_command(args.codex) + ["--version"], capture_output=True,
-                                 text=True, encoding="utf-8", errors="replace", timeout=10)
-        match = re.search(r"(\d+)\.(\d+)\.(\d+)", version.stdout)
-        if version.returncode != 0 or not match or tuple(map(int, match.groups())) < (0, 167, 0):
-            raise RuntimeError("codex_0.167.0_or_newer_required")
-        result["codex_version"] = match.group(0)
+        result["codex_version"] = check_codex_version(args.codex)
         server = AppServer(args.codex, args.model, str(manifest.parent))
         server.call("initialize", {"clientInfo": {"name": "subscription_fork_qa", "version": "0.1"},
                                    "capabilities": {"experimentalApi": True}})

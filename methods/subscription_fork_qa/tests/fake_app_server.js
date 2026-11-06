@@ -19,8 +19,9 @@ readline.createInterface({input: process.stdin}).on('line', line => {
   if (req.method === 'turn/start') {
     const turnId = `turn-${++turns}`;
     const failed = process.env.BVB_TEST_FAIL_CHILD === '1' && turns === 2;
+    const answer = req.params.outputSchema ? '{"ok":true}' : `answer-${turns}`;
     reply({turn: {id: turnId}});
-    send({method: 'item/completed', params: {turnId, item: {type: 'agentMessage', text: failed ? '' : `answer-${turns}`}}});
+    send({method: 'item/completed', params: {turnId, item: {type: 'agentMessage', text: failed ? '' : answer}}});
     send({method: 'thread/tokenUsage/updated', params: {turnId, tokenUsage: {last: {inputTokens: 20, cachedInputTokens: 10, outputTokens: 2}}}});
     send({method: 'turn/completed', params: {turn: {id: turnId, status: failed ? 'failed' : 'completed'}}});
   }
