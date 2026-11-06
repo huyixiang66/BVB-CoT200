@@ -1,0 +1,7 @@
+{
+  "images": ["frames/frame_001.jpg", "frames/frame_002.jpg"],
+  "questions": [
+    {"id": "example-1", "question": "What is to the left of the table?"},
+    {"id": "example-2", "question": "Which object is closest to the chair?"}
+  ]
+}
