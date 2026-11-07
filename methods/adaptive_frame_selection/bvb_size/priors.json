@@ -1,0 +1,5 @@
+{
+  "reliable": ["bed", "nightstand", "closet", "mattress", "door", "toilet", "microwave", "telephone", "keyboard", "computer mouse", "monitor", "laptop", "computer tower", "cup", "kettle", "pan", "clock", "suitcase", "shoes", "tv", "printer"],
+  "unreliable": ["table", "chair", "sofa", "stool", "bookshelf", "shoe rack", "window", "bathtub", "mirror", "fireplace", "refrigerator", "stove", "washer", "washing machine", "heater", "radiator", "dishwasher", "oven", "trash bin", "trash can", "backpack", "lamp", "table lamp", "ceiling light", "pillow", "towel", "blanket", "bowl", "cutting board", "exhaust fan"],
+  "poor_reference": ["kettle", "blanket", "printer"]
+}
