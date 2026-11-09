@@ -15,7 +15,11 @@ import numpy as np
 ROOT = Path(__file__).resolve().parent
 sys.path[:0] = [str(ROOT / "runtime"), str(ROOT / "runtime/assets")]
 from compact_pose_input import build_transport
-from local_context_scene import expand, prompt_for
+from local_context_scene import expand as legacy_expand, prompt_for
+from . import size_reference
+
+def expand(data, question, **kwargs):
+    return size_reference.expand(data, question, legacy_expand, **kwargs)
 
 
 def read(path):
@@ -100,6 +104,9 @@ def pick(rows, candidates, c2w, budget):
 
 
 def prepare(out, question, groups, inputs, frame_cap, reference_cameras, *, cache=None, poses=None):
+    reference_mode=size_reference.enabled(question)
+    if reference_mode and len(groups)!=1:
+        raise ValueError('Reference mode requires exactly one Astra-selected cluster')
     gated=any('semantic_review' in g for g in groups)
     from .coverage import admitted
     if gated and any(not admitted(g.get('semantic_review',{})) for g in groups):
@@ -118,7 +125,9 @@ def prepare(out, question, groups, inputs, frame_cap, reference_cameras, *, cach
         gid = group["group_id"]
         if not re.fullmatch(r"[A-Za-z0-9_-]+",gid):raise ValueError("Unsafe group ID")
         classes = list(group["objects"] if "objects" in group else [group["object"]])
-        scoped = dict(question, objects=classes, roles=question.get("roles", {}))
+        # Full public question scope; the current cluster is only the primary evidence.
+        scoped = dict(question, objects=list(question['objects']), primary_objects=classes,
+                      roles=question.get("roles", {}))
         folder = out / gid
         folder.mkdir()
         frames, refs = [], []
@@ -142,7 +151,7 @@ def prepare(out, question, groups, inputs, frame_cap, reference_cameras, *, cach
                              c2w_blender=c2w[i].tolist(), intrinsics_640x480=intrinsics[i].tolist()))
         reference = dict(rows=refs, source_hashes=source)
         transport = build_transport(reference)
-        prompt = prompt_for(scoped, walls_only=True)
+        prompt = prompt_for(scoped, walls_and_floor=True)
         prompt = prompt.replace("Use only the observed first 90 seconds.",
                                 "Use only the supplied timestamped frames.")
         prompt = prompt.replace("Coordinates: meters", "Coordinates: approximate scene units")
@@ -164,8 +173,12 @@ def prepare(out, question, groups, inputs, frame_cap, reference_cameras, *, cach
             prompt+='\nSemantic audit (not instance identity proof): '+json.dumps(group['semantic_review']['evidence'],ensure_ascii=False)+'\n'
             admission=group['semantic_review'].get('admission',{})
             if admission.get('mode') in ['only_candidate','comparison_best']:
-                prompt+='This cluster is retained by a category-coverage fallback, NOT verified identity: '+json.dumps(admission,ensure_ascii=False)+'. Reconstruct the visible candidate conservatively, record semantic uncertainty, and never invent unseen target geometry to force the label.\n'
+                prompt+='The user requires retaining at least one observed candidate for each requested category. For this fallback candidate, reconstruct its visible geometry with the requested label treated as PROVISIONAL, even when category naming is disputed. Do not discard the sole candidate merely because it looks like a neighboring category. Do not add unseen geometry or unsupported category-specific features. This cluster is retained by a category-coverage fallback, NOT verified identity: '+json.dumps(admission,ensure_ascii=False)+'. Reconstruct the visible candidate conservatively, record semantic uncertainty, and never invent unseen target geometry to force the label.\n'
             else:prompt+='Only match evidence establishes a target; uncertain frames are context, not confirmed detections.\n'
+        from .instance_resolution import local_instruction
+        prompt += local_instruction(scoped, classes)
+        if reference_mode:
+            prompt += size_reference.instruction()
         write(folder / "pose-reference.json", reference)
         write(folder / "pose-reference-vlm.json", transport)
         write(folder / "experiment.json", dict(camera_pose_reference=True, pose_input_format="compact",
@@ -175,13 +188,22 @@ def prepare(out, question, groups, inputs, frame_cap, reference_cameras, *, cach
         catalog.append(dict(group_id=gid, object=classes[0] if classes else "scene context",
                             objects=classes, folder=gid, frames=len(frames)))
     missing=sorted(set(question['objects'])-{obj for g in catalog for obj in g['objects']}) if gated else []
+    from .instance_resolution import instance_policy
     write(out / "manifest.json", dict(question=question, groups=catalog, colors=colors, frame_cap=frame_cap,
+                                     target_scope='all_question_objects', final_instance_policy=instance_policy(question),
+                                     context_scope='supports_and_visible_scale_reference' if reference_mode else 'direct_physical_support_only',
+                                     object_size_reference_mode=reference_mode,
+                                     structure_scope='walls_and_floor',
+                                     instance_resolution_required=True, cooccurrence_grouping=False,
                                      semantic_review_required=gated,semantic_missing_categories=missing))
 
 
 def submit(folder, key, max_tokens, attempt, api_alias, reasoning, *, base_url, model,
-           request_timeout=150, repair_feedback=None):
+           request_timeout=150, repair_feedback=None, provider_config=None):
     from .semantic_review import reconstruction_gate
+    from .api_provider import Connection
+    connection=provider_config or Connection('openai',base_url,key)
+    token_kwargs=connection.token_kwargs(max_tokens)
     reconstruction_gate(folder)
     from openai import OpenAI
 
@@ -206,7 +228,7 @@ def submit(folder, key, max_tokens, attempt, api_alias, reasoning, *, base_url, 
     assets.mkdir(exist_ok=True)
     ledger = assets / f"request{attempt}.json"
     record = dict(model=model, reasoning_effort=reasoning, max_completion_tokens=max_tokens,
-                  api_alias=api_alias,
+                  api_alias=api_alias, **connection.metadata(),
                   frame_count=len(frames), status="started", usage=None,
                   prompt_sha256=sha(folder / "system-prompt.txt"),
                   pose_sha256=sha(folder / "pose-reference-vlm.json"),
@@ -216,9 +238,10 @@ def submit(folder, key, max_tokens, attempt, api_alias, reasoning, *, base_url, 
         json.dump(record, f, indent=2)
     started = time.monotonic()
     try:
-        client = OpenAI(api_key=key, base_url=base_url, timeout=request_timeout, max_retries=0)
+        from .api_provider import create_client
+        client = create_client(connection, timeout=request_timeout if connection.provider!='subscription_direct' else max(900,request_timeout))
         response = client.chat.completions.create(model=record["model"], reasoning_effort=record["reasoning_effort"],
-                  max_completion_tokens=max_tokens, messages=[{"role": "user", "content": content}])
+                  **token_kwargs, messages=[{"role": "user", "content": content}])
         choice = response.choices[0]
         reply = (choice.message.content or "").strip()
         response_path = assets / f"response{attempt}.txt"
@@ -229,7 +252,11 @@ def submit(folder, key, max_tokens, attempt, api_alias, reasoning, *, base_url, 
                       response_file=response_path.name)
         if reply.startswith("```") and reply.endswith("```"):
             reply = reply.split("\n", 1)[1].rsplit("```", 1)[0].strip()
-        spec, audit = expand(json.loads(reply), read(folder / "question.json"), walls_only=True)
+        spec, audit = expand(json.loads(reply), read(folder / "question.json"), walls_and_floor=True)
+        if audit.get('scale_reference'):
+            supplied={f['timestamp_s'] for f in frames}
+            if any(not any(abs(t-s)<.011 for s in supplied) for t in audit['scale_reference']['source_timestamps_s']):
+                raise ValueError('Reference cites a timestamp outside supplied frames')
         write(assets / "scene-spec.json", spec)
         write(assets / "question-audit.json", audit)
         record.update(status="schema_valid", missing_keywords=audit["missing_keywords"])

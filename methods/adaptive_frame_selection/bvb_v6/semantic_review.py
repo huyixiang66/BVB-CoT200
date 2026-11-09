@@ -138,16 +138,20 @@ def prepare(selection,out,arm='roi_robust'):
     (out/'system-prompt.txt').write_text(PROMPT)
     print(json.dumps(dict(questions=len(references),group_occurrences=sum(map(len,references.values())),unique_reviews=len(jobs))))
 
-def request_job(folder,key,max_tokens=8192):
+def request_job(folder,key,max_tokens=8192,provider_config=None):
     from openai import OpenAI
+    from .api_provider import Connection
+    connection=provider_config or Connection('openai','https://api.openai.com/v1',key)
+    token_kwargs=connection.token_kwargs(max_tokens)
     folder=Path(folder);j=read(folder/'input.json');ledger=folder/'request.json'
     prompt=verify_input(j)
     if ledger.exists():
         previous=read(ledger)
         if previous['request_hash']!=j['request_hash']:raise ValueError('Review cache does not match inputs')
+        if previous.get('provider','openai')!=connection.provider:raise ValueError('Review cache belongs to another provider; use a new run directory')
         return previous  # Never repeat a timed-out or billed request implicitly.
     record=dict(status='started',model=MODEL,reasoning_effort='high',request_hash=j['request_hash'],
-                max_completion_tokens=max_tokens,usage=None,started_unix=time.time())
+                max_completion_tokens=max_tokens,usage=None,started_unix=time.time(),**connection.metadata())
     with ledger.open('x') as f:json.dump(record,f)
     t=time.monotonic()
     try:
@@ -161,8 +165,9 @@ def request_job(folder,key,max_tokens=8192):
                 path=folder/e[field];assert sha(path)==e[field+'_sha256']
                 mime='image/png' if path.suffix=='.png' else 'image/jpeg'
                 content.append({'type':'image_url','image_url':{'detail':'high','url':'data:'+mime+';base64,'+base64.b64encode(path.read_bytes()).decode()}})
-        client=OpenAI(api_key=key,base_url='https://api.openai.com/v1',timeout=600,max_retries=0)
-        response=client.chat.completions.create(model=MODEL,reasoning_effort='high',max_completion_tokens=max_tokens,store=False,
+        from .api_provider import create_client
+        client=create_client(connection,timeout=600)
+        response=client.chat.completions.create(model=MODEL,reasoning_effort='high',**token_kwargs,store=False,
              messages=[{'role':'system','content':prompt},{'role':'user','content':content}],
              response_format={'type':'json_schema','json_schema':{'name':'cluster_semantic_audit','strict':True,'schema':SCHEMA}})
         choice=response.choices[0];record.update(status='received',response_id=response.id,returned_model=response.model,
@@ -236,24 +241,24 @@ def reconstruction_gate(folder):
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('stage',choices=['prepare','submit','export'])
     p.add_argument('--selection',type=Path);p.add_argument('--out',type=Path,required=True);p.add_argument('--arm',default='roi_robust')
-    p.add_argument('--limit',type=int,default=0);p.add_argument('--max-tokens',type=int,default=8192)
+    p.add_argument('--limit',type=int,default=0);p.add_argument('--max-tokens',type=int,default=None)
     p.add_argument('--env-file',type=Path,default=Path(__file__).resolve().parents[1]/'.env')
+    p.add_argument('--provider',choices=['openai','boyue','subscription','subscription_direct'])
     a=p.parse_args()
     if a.stage=='prepare':
         if not a.selection:p.error('--selection required')
         prepare(a.selection,a.out,a.arm)
     elif a.stage=='export':export(a.out)
     else:
-        key=os.environ.get('LLM_API_KEY')
-        if not key:
-            from dotenv import dotenv_values
-            key=dotenv_values(a.env_file).get('LLM_API_KEY')
-        if not key:raise ValueError('Missing LLM_API_KEY')
-        if a.limit<0 or a.max_tokens<1:raise ValueError('limit must be non-negative and max-tokens must be positive')
+        from .api_provider import resolve
+        connection=resolve(a.provider,a.env_file)
+        key=connection.key
+        cap=a.max_tokens if a.max_tokens is not None else (None if connection.provider in ('subscription','subscription_direct') else 8192)
+        connection.token_kwargs(cap)
         m=read(a.out/'manifest.json');assert m['prompt_sha256'] in [digest(PROMPT),digest(PROMPT_LEGACY)] and m['schema_sha256']==digest(SCHEMA)
         pending=[gid for gid in m['jobs'] if not (a.out/'jobs'/gid/'request.json').exists()]
         for gid in pending[:a.limit or None]:
-            r=request_job(a.out/'jobs'/gid,key,max_tokens=a.max_tokens);print(json.dumps(dict(review_id=gid,status=r['status'],usage=r['usage'])),flush=True)
+            r=request_job(a.out/'jobs'/gid,key,max_tokens=cap,provider_config=connection);print(json.dumps(dict(review_id=gid,status=r['status'],usage=r['usage'])),flush=True)
             export(a.out)
             if r['status'] not in ['reviewed','no_evidence']:break
         export(a.out)

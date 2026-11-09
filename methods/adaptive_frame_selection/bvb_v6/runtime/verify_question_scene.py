@@ -10,7 +10,12 @@ folder=Path(sys.argv[sys.argv.index('--')+1]).resolve()
 spec=json.loads((folder/'scene-spec.json').read_text())
 audit=json.loads((folder/'question-audit.json').read_text())
 by_id={o['id']:o for o in spec['objects']}
-assert set(by_id)==set(audit['background']+audit['structure']+[t['id'] for t in audit['targets']])
+references=[audit['scale_reference']['geometry_id']] if audit.get('scale_reference') else []
+assert set(by_id)==set(audit['background']+audit['structure']+[t['id'] for t in audit['targets']]+references)
+for name in references:
+    root=bpy.data.objects[name+' [asset]']
+    assert root['asset_kind']==by_id[name]['kind']
+    assert any(o.type=='MESH' for o in bpy.data.collections[name].objects)
 bpy.context.view_layer.update()
 for name in audit['background']:
     record=by_id[name];col=bpy.data.collections[name]
@@ -30,6 +35,9 @@ for t in audit['targets']:
     assert root['asset_kind']==t['kind']
     assert any(o.type=='MESH' for o in bpy.data.collections[t['id']].objects)
 for name in audit['structure']:
+    if audit.get('structure_scope')=='walls, openings and floor; no ceiling or roof':
+        assert by_id[name]['kind'] in ('wall','floor')
+        assert bpy.data.objects[name+' [asset]']['asset_kind']==by_id[name]['kind']
     if audit.get('structure_scope')=='walls and their openings only':
         assert by_id[name]['kind']=='wall'
         assert bpy.data.objects[name+' [asset]']['asset_kind']=='wall'
@@ -50,5 +58,8 @@ result=dict(status='passed',background_single_white_boxes=len(audit['background'
 if audit.get('structure_scope')=='walls and their openings only':
     assert not any(ob.get('asset_kind') in ('floor','ceiling','roof') for ob in bpy.data.objects)
     result['walls_only_verified']=True
+if audit.get('structure_scope')=='walls, openings and floor; no ceiling or roof':
+    assert not any(ob.get('asset_kind') in ('ceiling','roof') for ob in bpy.data.objects)
+    result['walls_and_floor_verified']=True
 (folder/'geometry-validation.json').write_text(json.dumps(result,indent=2)+'\n')
 print('QUESTION_GEOMETRY_VERIFIED',json.dumps(result))

@@ -1,4 +1,4 @@
-"""1fps discovery, optical-flow box association, four frames per visibility peak.
+"""discovery-rate discovery, optical-flow box association, four frames per visibility peak.
 
 No SAM2, answer labels, LLM calls, or inferred physical instance counts.
 Local 4fps detections verify proposed neighbors; they do not create new peaks.
@@ -41,7 +41,7 @@ def associate(predicted, boxes, threshold=.2):
 
 
 def peak_tracks(rows, obj, index, propagate, hardcut=.5):
-    """One strongest 1fps detection per flow-linked visibility tracklet.
+    """One strongest discovery-rate detection per flow-linked visibility tracklet.
 
     No cross-gap re-ID; two adjacent waves may be the same physical instance.
     Low-score observations can maintain a track but cannot create a valid peak.
@@ -103,7 +103,9 @@ def main():
     if not 0<=a.peak_threshold<=1:ap.error('peak-threshold must lie in [0,1]')
     start=time.perf_counter();cv2.setNumThreads(4)
     cfg=read(a.coarse/'config.json');lc=read(a.local/'config.json');pc=read(a.piano/'config.json')
-    assert cfg['candidate_fps']==1 and lc['candidate_fps']==pc['candidate_fps']==4
+    discovery_fps=float(cfg['candidate_fps'])
+    local_fps=float(lc['candidate_fps'])
+    assert discovery_fps in (1.,2.,4.) and local_fps in (2.,4.) and pc['candidate_fps']==local_fps and local_fps>=discovery_fps
     assert cfg['video_sha256']==lc['video_sha256']==pc['video_sha256']
     cand=read(a.local/'candidates.json');piano_cand=read(a.piano/'candidates.json')
     assert [(c['source_frame_index'],c['frame_sha256']) for c in cand]==[(c['source_frame_index'],c['frame_sha256']) for c in piano_cand]
@@ -178,7 +180,7 @@ def main():
                 if area<8:break
                 g=abs(global_cum[cand[k]['source_frame_index']]-global_cum[cand[ak]['source_frame_index']])
                 neighbors.append({'frame':k,'timestamp_s':float(times[k]),'box_xyxy':box,'dino_score':None if match is None else match['score'],'matched_detection':match is not None,'flow_coordinate':direction*(.75*distance+.25*g),'roi_cumulative_motion':distance,'global_cumulative_motion':g,'quality':float(quality[k]),'status':'locally_verified' if match else 'flow_only'})
-        ar={'frame':ak,'timestamp_s':float(at),'box_xyxy':anchorbox,'dino_score':anchor['score'],'matched_detection':True,'flow_coordinate':0.,'quality':float(quality[ak]),'status':'low_score_anchor' if p['fallback'] else 'anchor','reason':'1fps tracklet maximum score'}
+        ar={'frame':ak,'timestamp_s':float(at),'box_xyxy':anchorbox,'dino_score':anchor['score'],'matched_detection':True,'flow_coordinate':0.,'quality':float(quality[ak]),'status':'low_score_anchor' if p['fallback'] else 'anchor','reason':f'{discovery_fps:g}fps tracklet maximum score'}
         selected=[ar];pool=[r for r in neighbors if r['matched_detection'] and abs(r['timestamp_s']-at)>=.23]
         def utility(r):
             novelty=min(abs(r['flow_coordinate']-s['flow_coordinate']) for s in selected)
@@ -218,7 +220,7 @@ def main():
         save(folder/'input-frames.json',{'question':q,'frames':[{'source_frame_index':cand[k]['source_frame_index'],'timestamp_s':float(times[k]),'image':'../frames/'+f'{cand[k]["source_frame_index"]:07d}.jpg','sha256':cand[k]['frame_sha256'],'used_by_peaks':[p['peak_id'] for p in ps if any(r['frame']==k for r in p['selected'])]} for k in unique],'chronological':True,'deduplicated':True,'contains_unverified_context':record['context_fallback_slots']>0})
         fig,axs=plt.subplots(len(q['objects']),1,figsize=(14,2.6*len(q['objects'])),squeeze=False,sharex=True)
         for j,o in enumerate(q['objects']):
-            ax=axs[j,0];ys=[max((b['score'] for b in row['detections'] if b['object']==o),default=0) for row in coarse];ts=[r['timestamp_s'] for r in coarse];ax.plot(ts,ys,color='#687a95',lw=1,label='1fps DINO score');ax.axhline(a.peak_threshold,color='#aaaaaa',ls='--',lw=.8)
+            ax=axs[j,0];ys=[max((b['score'] for b in row['detections'] if b['object']==o),default=0) for row in coarse];ts=[r['timestamp_s'] for r in coarse];ax.plot(ts,ys,color='#687a95',lw=1,label=f'{discovery_fps:g}fps DINO score');ax.axhline(a.peak_threshold,color='#aaaaaa',ls='--',lw=.8)
             for n,p in enumerate(byobj[o]):
                 ax.scatter([p['anchor_time_s']],[p['anchor']['score']],color='#ce3325',marker='^',s=45);ax.text(p['anchor_time_s'],min(.95,p['anchor']['score']+.07),p['peak_id'].split('-p')[-1],fontsize=8)
                 for r in p['selected']:ax.plot([r['timestamp_s']]*2,[-.12,-.03],color='#d68c19' if r['status']=='context_fallback' else '#19865b',lw=1.5)
@@ -233,11 +235,11 @@ def main():
             for col,r in enumerate(p['selected']):
                 im=Image.open(report/r['image']).resize((320,240));thumb.paste(im,(320*col,100+j*300));dr.text((320*col+5,342+j*300),f'{r["timestamp_s"]:.2f}s '+r['status'],font=small,fill='#a33322' if r['status']=='context_fallback' else 'black')
         thumb.save(folder/'all-peaks.jpg',quality=91)
-    config={'version':'bvb_v3 adaptive peaks4 prototype','scene':qs['scene'],'discovery_fps':1,'local_candidate_fps':4,'frames_per_peak':4,'hardcut':a.peak_threshold,'association_detection_min_score':.25,'association_iou':.2,'max_detection_gap_s':2,'local_radius_s':4,'local_unconfirmed_gap_s':1,'local_min_spacing_s':.23,'peak_definition':'Maximum 1fps score per flow-linked visibility tracklet, followed by 6s temporal nonmaximum suppression across fragments; simultaneous disjoint anchor boxes survive. Grouped waves are not unique instances','peak_min_separation_s':6,'fallback':f'If category has no >={a.peak_threshold:g} 1fps detection, retain only its best 1fps tracklet/anchor; fill missing local neighbors as explicitly unverified context','flow':'Local Farneback at 320x240 on 4fps adjacent JPEG frames; ROI p75 / sqrt(box area), integrated outward. Global term reuses native-adjacent CUDA Farneback p75/400 integral. Signed coordinate = 0.75 ROI + 0.25 global. Selection uses distance to already selected coordinates, capped 0.75, times sharpness quality and (0.5+0.5*score).','limitations':['Tracklets are not physical instances; cross-gap re-ID is absent. Temporal NMS may group different instances visible at nearby times; only simultaneous disjoint anchor boxes are protected.','No automatic semantic verification; only keyboard is user-resolved to piano. Other known false positives retained.','Flow path length is not proof of 3D baseline or geometric overlap; camera shake can contribute.','Exactly four distinct frames per peak; low-change pairs and unverified context explicitly flagged.','No SAM2, no LingBot, no extra spatial connection frames, no automatic difficulty budget in this fixed-four-per-peak experiment.'],'source_sha256':{str(p):sha(p) for p in [a.coarse/'detections.jsonl',a.local/'detections.jsonl',a.piano/'detections.jsonl',a.native_flow,a.questions,Path(__file__)]}}
+    config={'version':'bvb_v3 adaptive peaks4 prototype','scene':qs['scene'],'discovery_fps':discovery_fps,'local_candidate_fps':local_fps,'frames_per_peak':4,'hardcut':a.peak_threshold,'association_detection_min_score':.25,'association_iou':.2,'max_detection_gap_s':2,'local_radius_s':4,'local_unconfirmed_gap_s':1,'local_min_spacing_s':.23,'peak_definition':'Maximum discovery-rate score per flow-linked visibility tracklet, followed by 6s temporal nonmaximum suppression across fragments; simultaneous disjoint anchor boxes survive. Grouped waves are not unique instances','peak_min_separation_s':6,'fallback':f'If category has no >={a.peak_threshold:g} discovery-rate detection, retain only its best discovery-rate tracklet/anchor; fill missing local neighbors as explicitly unverified context','flow':'Local Farneback at 320x240 on local-rate adjacent JPEG frames; ROI p75 / sqrt(box area), integrated outward. Global term reuses native-adjacent CUDA Farneback p75/400 integral. Signed coordinate = 0.75 ROI + 0.25 global. Selection uses distance to already selected coordinates, capped 0.75, times sharpness quality and (0.5+0.5*score).','limitations':['Tracklets are not physical instances; cross-gap re-ID is absent. Temporal NMS may group different instances visible at nearby times; only simultaneous disjoint anchor boxes are protected.','No automatic semantic verification; only keyboard is user-resolved to piano. Other known false positives retained.','Flow path length is not proof of 3D baseline or geometric overlap; camera shake can contribute.','Exactly four distinct frames per peak; low-change pairs and unverified context explicitly flagged.','No SAM2, no LingBot, no extra spatial connection frames, no automatic difficulty budget in this fixed-four-per-peak experiment.'],'source_sha256':{str(p):sha(p) for p in [a.coarse/'detections.jsonl',a.local/'detections.jsonl',a.piano/'detections.jsonl',a.native_flow,a.questions,Path(__file__)]}}
     save(report/'config.json',config);save(report/'peaks.json',allpeaks)
     summary={'questions':questions,'peak_count':len(allpeaks),'slots':len(allpeaks)*4,'unique_source_frames':len(selected_unique),'context_fallback_slots':sum(p['context_fallback_count'] for p in allpeaks),'low_score_peaks':sum(p['fallback'] for p in allpeaks),'low_novelty_peak_count':sum(bool(p['low_novelty_pairs']) for p in allpeaks),'object_peak_counts':{o:len(ps) for o,ps in byobj.items()},'discovery_seconds':discovery_seconds,'local_processing_seconds':time.perf_counter()-start,'piano_detector':read(a.piano/'detector-info.json'),'no_qa_performed':True};save(report/'summary.json',summary)
     links=''.join(f'<tr><td><a href="{r["folder"]}/index.html">Q{r["question"]["id"]}</a></td><td>{html.escape(", ".join(r["question"]["objects"]))}</td><td>{r["peak_count"]}</td><td>{r["slots"]}</td><td>{r["unique_frames"]}</td><td>{r["context_fallback_slots"]}</td><td><a href="{r["folder"]}/all-peaks.jpg">全部帧组图</a> · <a href="{r["folder"]}/distribution.png">分布图</a></td></tr>' for r in questions)
-    description='1fps发现波峰，先取光流关联片段最高分，再用6秒时间抑制合并相邻碎峰，同帧分离框保留；每峰再选3张局部补充帧。局部候选使用4fps缓存；钢琴重新检测。绿色框为局部检测确认，红框为锚点，橙色文字为未经确认的上下文补位。每峰4张不同帧，跨峰可重合，输入重构前按原视频帧号去重。没有SAM2；波峰数量不等于实际物体数；已知误检仍可能存在。'
+    description='discovery-rate发现波峰，先取光流关联片段最高分，再用6秒时间抑制合并相邻碎峰，同帧分离框保留；每峰再选3张局部补充帧。局部候选使用4fps缓存；钢琴重新检测。绿色框为局部检测确认，红框为锚点，橙色文字为未经确认的上下文补位。每峰4张不同帧，跨峰可重合，输入重构前按原视频帧号去重。没有SAM2；波峰数量不等于实际物体数；已知误检仍可能存在。'
     (report/'index.html').write_text('<!doctype html><meta charset="utf-8"><style>body{font:17px system-ui;max-width:1400px;margin:30px auto;line-height:1.6}td,th{padding:9px;border-bottom:1px solid #ddd}</style><h1>BVB_v3：10题 adaptive 抽帧，每峰4帧</h1><p>'+description+'</p><table><tr><th>题目</th><th>相关物体</th><th>波峰</th><th>帧位</th><th>去重帧</th><th>上下文补位</th><th>图片</th></tr>'+links+'</table><p><a href="config.json">算法与限制</a> · <a href="summary.json">统计</a> · <a href="peaks.json">全部选帧依据</a> · <a href="semantic-mapping.json">语义映射</a></p>')
     (report/'README.txt').write_text(description+'\n\n'+json.dumps(config,ensure_ascii=False,indent=2)+'\n')
     print('DONE',json.dumps({k:v for k,v in summary.items() if k not in ['questions','piano_detector']},ensure_ascii=False),flush=True)

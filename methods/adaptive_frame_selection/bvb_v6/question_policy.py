@@ -9,34 +9,29 @@ from pathlib import Path
 def classify_question(question):
     """Return an auditable starting policy; unrecognized questions keep V6 behavior.
 
-    A single target means one group for each question-relevant category, not one
-    group for the whole question. Explicit per-question overrides remain necessary
+    A single target requires one admitted cluster per question-relevant category
+    after semantic review and, when necessary, Astra comparison. Explicit per-question overrides remain necessary
     when multiple instances of a category serve different roles.
     """
     kind = str(question.get('question_type') or question.get('task') or question.get('type') or '').lower()
     text = str(question.get('question') or question.get('ori_question') or '').lower()
     evidence = []
 
-    if kind in {'obj_appearance_order', 'object_appearance_order'}:
-        return _policy('supplemental', ['appearance_time'], 'appearance order requires video time')
-    if kind in {'object_counting', 'object_rel_distance', 'room_size_estimation', 'route_planning'}:
-        if kind == 'room_size_estimation':
+    # User policy: counting and relative-distance comparisons retain multiple
+    # clusters; all other VSI/ReVSI types select one cluster per object category.
+    if kind.startswith(('object_counting', 'object_rel_distance')):
+        return _policy('multiple', [], kind)
+    if (kind.startswith(('object_rel_direction', 'room_size_estimation')) or
+            kind in {'object_abs_distance', 'object_size_estimation', 'route_planning',
+                     'obj_appearance_order', 'object_appearance_order'}):
+        if kind in {'object_abs_distance', 'object_size_estimation'}:
+            evidence.append('metric_scale')
+        if kind.startswith('room_size_estimation'):
             evidence.extend(['room_boundary', 'metric_scale'])
         if kind == 'route_planning':
             evidence.append('navigable_layout')
-        return _policy('multiple', evidence, kind)
-    if (kind.startswith('object_rel_direction') or
-            kind in {'object_abs_distance', 'object_size_estimation'}):
-        # Same-category or plural referents can require multiple instances.
-        roles = question.get('roles') or {}
-        if isinstance(roles, dict):
-            role_values = [str(v).strip().lower() for v in roles.values() if isinstance(v, str)]
-            if len(role_values) != len(set(role_values)):
-                return _policy('unknown', [], 'repeated category across roles requires review')
-        if re.search(r'\b(two|three|four|multiple|both|each|all)\s+\w+(?:\s+\w+)?s\b', text):
-            return _policy('unknown', [], 'plural referents require question-level review')
-        if kind in {'object_abs_distance', 'object_size_estimation'}:
-            evidence.append('metric_scale')
+        if kind in {'obj_appearance_order', 'object_appearance_order'}:
+            evidence.append('appearance_time')
         return _policy('single', evidence, kind)
 
     if any(term in kind for term in ('displacement', 'path length', 'speed', 'acceleration',

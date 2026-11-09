@@ -20,7 +20,9 @@ class QuestionPolicyTests(unittest.TestCase):
             ({'question_type': 'object_abs_distance'}, 'single', ['metric_scale']),
             ({'question_type': 'object_rel_distance'}, 'multiple', []),
             ({'question_type': 'object_counting'}, 'multiple', []),
-            ({'question_type': 'obj_appearance_order'}, 'supplemental', ['appearance_time']),
+            ({'question_type': 'object_counting_single'}, 'multiple', []),
+            ({'question_type': 'object_rel_distance_farthest'}, 'multiple', []),
+            ({'question_type': 'obj_appearance_order'}, 'single', ['appearance_time']),
             ({'task': '3D Video Grounding'}, 'single', ['camera_pose_at_query', 'camera_coordinates', 'metric_scale']),
             ({'task': 'Dimensional Measurement', 'question': 'Distance between camera and table?'},
              'single', ['metric_scale', 'camera_pose_at_query']),
@@ -39,37 +41,32 @@ class QuestionPolicyTests(unittest.TestCase):
 
     def test_repeated_roles_and_explicit_override(self):
         q = {'question_type': 'object_abs_distance', 'roles': {'first': 'chair', 'second': 'chair'}}
-        self.assertEqual(question_policy(q)['category'], 'unknown')
+        self.assertEqual(question_policy(q)['category'], 'single')
         q['retention_policy'] = {'category': 'multiple', 'reason': 'two chairs'}
         self.assertEqual(question_policy(q)['category'], 'multiple')
         with self.assertRaises(ValueError):
             question_policy({'retention_policy': {'category': 'missing'}})
 
-    def test_single_waits_for_question_specific_comparison(self):
-        groups = [group('a', 'accept'), group('b', 'accept'), group('c', 'uncertain')]
-        source = selection(groups)
-        source['questions']['q']['question']['question_type'] = 'object_rel_direction_medium'
+    def test_single_requires_question_specific_comparison_before_keeping_one(self):
+        source = selection([group('a', 'accept'), group('b', 'accept'), group('c', 'uncertain')])
+        source['questions']['q']['question']['retention_policy'] = {'category':'single','reason':'Astra question audit'}
         with tempfile.TemporaryDirectory() as root:
             enable(root)
             q = apply_coverage(copy.deepcopy(source), root)['questions']['q']
             self.assertFalse(q['coverage_complete'])
-            self.assertEqual(q['coverage_blockers']['fridge'], 'single_instance_comparison_pending')
             self.assertEqual(q['arms']['semantic_selected'], [])
-            cid = comparison_key('fridge', ['a', 'b'], 'q')
-            result = {'selected_id': 'b', 'confidence': 'low', 'reason': 'relative best',
-                      'uncertainty': 'not verified', 'ranking': [
-                          {'candidate_id': 'b', 'rank': 1, 'reason': 'first'},
-                          {'candidate_id': 'a', 'rank': 2, 'reason': 'second'}]}
-            path = Path(root) / 'coverage' / cid / 'result.json'
-            write(path, {**result, 'status': 'compared', 'request_hash': 'same'})
-            write(path.parent / 'input.json', {'request_hash': 'same'})
-            q = apply_coverage(copy.deepcopy(source), root)['questions']['q']
-            chosen = q['arms']['semantic_selected']
+            ids=['a','b'];cid=comparison_key('fridge',ids,'q')
+            self.assertNotEqual(cid,comparison_key('fridge',ids,'different-question'))
+            p=Path(root)/'coverage'/cid/'result.json'
+            result=dict(selected_id='b',confidence='high',reason='Best fits the question',uncertainty='',
+                ranking=[dict(candidate_id='b',rank=1,reason='matches'),dict(candidate_id='a',rank=2,reason='less suitable')])
+            write(p,{**result,'status':'compared','request_hash':'h'})
+            write(p.parent/'input.json',{'request_hash':'h'})
+            q=apply_coverage(source,root)['questions']['q']
             self.assertTrue(q['coverage_complete'])
-            self.assertEqual([g['group_id'] for g in chosen], ['b'])
-            self.assertTrue(admitted(chosen[0]['semantic_review']))
-            self.assertEqual(chosen[0]['semantic_review']['status'], 'accept')
-            self.assertEqual(len(q['coverage_excluded']), 2)
+            self.assertEqual([g['group_id'] for g in q['arms']['semantic_selected']],['b'])
+            self.assertEqual([g['semantic_review']['status'] for g in q['coverage_excluded']],['accept','uncertain'])
+            self.assertTrue(admitted(q['arms']['semantic_selected'][0]['semantic_review']))
 
     def test_multiple_keeps_confirmed_and_uncertain_without_forcing_one(self):
         source = selection([group('a', 'accept'), group('b', 'uncertain'), group('c', 'reject')])
@@ -82,15 +79,17 @@ class QuestionPolicyTests(unittest.TestCase):
             self.assertTrue(all(admitted(g['semantic_review']) for g in q['arms']['semantic_selected']))
             self.assertTrue(q['coverage_complete'])
 
-    def test_single_never_restores_a_rejected_only_candidate(self):
+    def test_single_preserves_only_candidate_as_unverified_fallback(self):
         source = selection([group('a', 'reject')])
         source['questions']['q']['question']['question_type'] = 'object_abs_distance'
         with tempfile.TemporaryDirectory() as root:
             enable(root)
             q = apply_coverage(source, root)['questions']['q']
-            self.assertFalse(q['coverage_complete'])
-            self.assertEqual(q['arms']['semantic_selected'], [])
-            self.assertEqual(q['coverage_blockers']['fridge'], 'all_candidates_rejected_or_unavailable')
+            self.assertTrue(q['coverage_complete'])
+            chosen = q['arms']['semantic_selected']
+            self.assertEqual([g['group_id'] for g in chosen], ['a'])
+            self.assertEqual(chosen[0]['semantic_review']['status'], 'reject')
+            self.assertTrue(chosen[0]['semantic_review']['admission']['category_unverified'])
 
     def test_pending_review_blocks_and_legacy_policy_is_unchanged(self):
         source = selection([group('a', 'accept'), group('b', 'pending')])

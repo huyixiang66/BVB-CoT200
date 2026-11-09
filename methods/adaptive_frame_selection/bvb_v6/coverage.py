@@ -54,12 +54,9 @@ def prepare(root):
             candidates=[g for g in gs if g['object']==obj]
             accepted=[g for g in candidates if g['semantic_review']['status']=='accept']
             if len(candidates)<=1:continue
-            if policy['category']=='single' and len(accepted)>1:
-                ids=sorted(g['semantic_review']['review_id'] for g in accepted)
-                cid=comparison_key(obj,ids,qid)
-            elif accepted or policy['category']=='multiple' or (policy['category']=='single' and all(g['semantic_review']['status']=='reject' for g in candidates)):continue
+            if (accepted and (policy['category']!='single' or len(accepted)==1)) or (policy['category']=='multiple' and any(g['semantic_review']['status']=='uncertain' for g in candidates)):continue
             else:
-                ids=eligible_ids(candidates);cid=comparison_key(obj,ids)
+                ids=sorted(g['semantic_review']['review_id'] for g in accepted) if policy['category']=='single' and accepted else eligible_ids(candidates);cid=comparison_key(obj,ids,qid if policy['category']=='single' else None)
             j=jobs.setdefault(cid,dict(object=obj,candidates=ids,questions=[],all_candidate_count=len(candidates)))
             j['questions'].append(dict(id=qid,question=q['question']['question']))
     for cid,j in jobs.items():
@@ -69,12 +66,15 @@ def prepare(root):
     write(coverage/'manifest.json',dict(comparisons=list(jobs),model=MODEL,prompt_sha256=digest(PROMPT),schema_sha256=digest(SCHEMA)))
     (coverage/'system-prompt.txt').write_text(PROMPT)
     write(root/'coverage-policy.json',dict(enabled=True,policy='question_aware_category_coverage',
-          singleton='keep_regardless_of_semantic_verdict',multiple='keep_all_accepts_else_compare_uncertain_else_compare_all',
+          singleton='keep_regardless_of_semantic_verdict',single='exactly_one_cluster_per_category_after_question_specific_comparison',multiple='keep_all_accepts_else_compare_uncertain_else_compare_all',
           missing_candidates='explicitly_block; never fabricate a group'))
     export(root);print(json.dumps({'unique_comparisons':len(jobs),'comparison_ids':list(jobs)}))
 
-def submit(root,key,limit=1,max_tokens=4096):
+def submit(root,key,limit=1,max_tokens=4096,provider_config=None):
     from openai import OpenAI
+    from .api_provider import Connection
+    connection=provider_config or Connection('openai','https://api.openai.com/v1',key)
+    token_kwargs=connection.token_kwargs(max_tokens)
     from .semantic_review import export
     root=Path(root);m=read(root/'coverage/manifest.json')
     assert m['prompt_sha256']==digest(PROMPT) and m['schema_sha256']==digest(SCHEMA)
@@ -83,7 +83,7 @@ def submit(root,key,limit=1,max_tokens=4096):
         folder=root/'coverage'/cid;j=read(folder/'input.json');ledger=folder/'request.json'
         assert j['request_hash']==digest(dict(input={k:v for k,v in j.items() if k!='request_hash'},prompt=PROMPT,schema=SCHEMA,model=MODEL))
         if ledger.exists():continue
-        record=dict(status='started',model=MODEL,reasoning_effort='high',request_hash=j['request_hash'],usage=None,started_unix=time.time())
+        record=dict(status='started',model=MODEL,reasoning_effort='high',request_hash=j['request_hash'],usage=None,started_unix=time.time(),**connection.metadata())
         with ledger.open('x') as f:json.dump(record,f)
         start=time.monotonic()
         try:
@@ -98,8 +98,9 @@ def submit(root,key,limit=1,max_tokens=4096):
                         path=root/'jobs'/gid/e[kind];assert sha(path)==e[kind+'_sha256']
                         mime='image/png' if path.suffix=='.png' else 'image/jpeg'
                         content.append({'type':'image_url','image_url':{'detail':'high','url':'data:'+mime+';base64,'+base64.b64encode(path.read_bytes()).decode()}})
-            client=OpenAI(api_key=key,base_url='https://api.openai.com/v1',timeout=600,max_retries=0)
-            response=client.chat.completions.create(model=MODEL,reasoning_effort='high',max_completion_tokens=max_tokens,store=False,
+            from .api_provider import create_client
+            client=create_client(connection,timeout=600)
+            response=client.chat.completions.create(model=MODEL,reasoning_effort='high',**token_kwargs,store=False,
                  messages=[{'role':'system','content':PROMPT},{'role':'user','content':content}],
                  response_format={'type':'json_schema','json_schema':{'name':'relative_cluster_selection','strict':True,'schema':SCHEMA}})
             choice=response.choices[0];record.update(status='received',response_id=response.id,usage=response.usage.model_dump() if response.usage else None,finish_reason=choice.finish_reason)
@@ -134,29 +135,19 @@ def apply_coverage(s,root):
             if aware and pending and policy['category'] in ('single','multiple'):
                 # Do not silently drop unreviewed candidates, especially for counts.
                 uncovered.append(obj);blockers[obj]='semantic_review_pending'
-            elif policy['category']=='single' and len(accepted)>1:
-                ids=sorted(g['semantic_review']['review_id'] for g in accepted)
-                cid=comparison_key(obj,ids,qid);p=root/'coverage'/cid/'result.json'
-                if p.exists():
-                    result=read(p);j=read(p.parent/'input.json')
-                    assert result['status']=='compared' and result['request_hash']==j['request_hash']
-                    validate_result({k:result[k] for k in SCHEMA['required']},ids)
-                    winner=next(g for g in accepted if g['semantic_review']['review_id']==result['selected_id'])
-                    kept={winner['group_id']};reason='comparison_best';detail=dict(comparison_id=cid,winner_review_id=result['selected_id'],
-                        reason=result['reason'],confidence=result['confidence'],uncertainty=result['uncertainty'],result_file=str(p.resolve()),result_sha256=sha(p))
-                else:uncovered.append(obj);blockers[obj]='single_instance_comparison_pending'
-            elif policy['category']=='multiple':
+            elif len(candidates)==1:
+                kept={candidates[0]['group_id']};reason='only_candidate'
+                detail={'reason':'用户要求每题每类别至少保留一个候选；唯一候选保底保留，原始审核结论不变。','category_unverified':candidates[0]['semantic_review']['status']!='accept'}
+            elif policy['category']=='multiple' and any(g['semantic_review']['status'] in ('accept','uncertain') for g in candidates):
                 kept={g['group_id'] for g in candidates if g['semantic_review']['status'] in ('accept','uncertain')}
                 reason='multiple_candidates'
                 if not kept:uncovered.append(obj);blockers[obj]='all_candidates_rejected_or_unavailable'
-            elif policy['category']=='single' and candidates and all(g['semantic_review']['status']=='reject' for g in candidates):
-                uncovered.append(obj);blockers[obj]='all_candidates_rejected_or_unavailable'
-            elif accepted:
+            elif accepted and not (policy['category']=='single' and len(accepted)>1):
                 kept={g['group_id'] for g in accepted};reason='semantic_accept'
             elif len(candidates)==1:
                 kept={candidates[0]['group_id']};reason='only_candidate';detail={'reason':'该问题该类别只有一个聚类，按覆盖规则保留。'}
             else:
-                ids=eligible_ids(candidates);cid=comparison_key(obj,ids);p=root/'coverage'/cid/'result.json'
+                ids=sorted(g['semantic_review']['review_id'] for g in accepted) if policy['category']=='single' and accepted else eligible_ids(candidates);cid=comparison_key(obj,ids,qid if policy['category']=='single' else None);p=root/'coverage'/cid/'result.json'
                 if p.exists():
                     result=read(p);j=read(p.parent/'input.json')
                     assert result['status']=='compared' and result['request_hash']==j['request_hash']
@@ -199,17 +190,19 @@ def admitted(review):
 
 def main():
     p=argparse.ArgumentParser();p.add_argument('stage',choices=['prepare','submit','export']);p.add_argument('--source',type=Path,required=True)
-    p.add_argument('--limit',type=int,default=1);p.add_argument('--max-tokens',type=int,default=4096);a=p.parse_args()
+    p.add_argument('--limit',type=int,default=1);p.add_argument('--max-tokens',type=int,default=None)
+    p.add_argument('--provider',choices=['openai','boyue','subscription','subscription_direct'])
+    p.add_argument('--env-file',type=Path,default=Path(__file__).resolve().parents[1]/'.env')
+    a=p.parse_args()
     if a.stage=='prepare':prepare(a.source)
     elif a.stage=='export':
         from .semantic_review import export
         export(a.source)
     else:
-        key=os.environ.get('LLM_API_KEY')
-        if not key:
-            from dotenv import dotenv_values
-            key=dotenv_values(Path(__file__).resolve().parents[1]/'.env').get('LLM_API_KEY')
-        if not key:raise ValueError('Missing LLM_API_KEY')
-        if a.limit<1 or a.max_tokens<1:raise ValueError('limit and max-tokens must be positive')
-        submit(a.source,key,limit=a.limit,max_tokens=a.max_tokens)
+        from .api_provider import resolve
+        connection=resolve(a.provider,a.env_file)
+        cap=a.max_tokens if a.max_tokens is not None else (None if connection.provider in ('subscription','subscription_direct') else 4096)
+        connection.token_kwargs(cap)
+        if a.limit<1:raise ValueError('limit must be positive')
+        submit(a.source,connection.key,limit=a.limit,max_tokens=cap,provider_config=connection)
 if __name__=='__main__':main()

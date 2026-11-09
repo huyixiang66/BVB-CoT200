@@ -18,3 +18,7 @@ outputs/
 *.jpg
 *.jpeg
 *.blend
+
+.local/
+.tools/
+exports/

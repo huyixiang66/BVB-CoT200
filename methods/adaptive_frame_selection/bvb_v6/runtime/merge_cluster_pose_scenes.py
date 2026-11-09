@@ -34,6 +34,7 @@ def main():
         spec=read(assets/'scene-spec.json');audit=read(assets/'question-audit.json');inspection=read(assets/'scene-inspection.json')
         expected={r['name']:r for r in inspection['objects']}
         ids=[o['id'] for o in spec['objects']];target_ids={r['id'] for r in audit['targets']}
+        target_labels={r['id']:r['label'] for r in audit['targets']}
         chunk=bpy.data.collections.new(g['group_id']);scene.collection.children.link(chunk)
         frame=bpy.data.objects.new(g['group_id']+' | shared-world frame',None);chunk.objects.link(frame);frame.matrix_world=Matrix.Identity(4)
         frame['world_from_fragment']=sum([list(r) for r in Matrix.Identity(4)],[])
@@ -50,7 +51,7 @@ def main():
                     original_bbox=bbox([o]);expected_bbox=expected[original_name]['bbox']
                     max_bbox_error=max(max_bbox_error,max(abs(original_bbox[k][i]-expected_bbox[k][i]) for k in ['min','max'] for i in range(3)))
                     meshes.append(o)
-                    o.color=manifest['colors'][g['object']] if original_id in target_ids else (o.data.materials[0].diffuse_color if o.data.materials else (.85,.85,.82,1))
+                    o.color=manifest['colors'][target_labels[original_id]] if original_id in target_ids else (o.data.materials[0].diffuse_color if o.data.materials else (.85,.85,.82,1))
                 if o.parent is None:
                     old=o.matrix_world.copy();o.parent=frame;o.matrix_world=old
                     asset_rows.append({'id':original_id,'position':list(old.translation)})

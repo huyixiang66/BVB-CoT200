@@ -32,16 +32,19 @@ def main():
     prep.add_argument('--arm', help='Defaults to the reviewed selection_arm (semantic_selected with coverage), otherwise v6')
     prep.add_argument('--reference-cameras', type=Path)
     prep.add_argument('--frame-cap', type=int, default=8)
+    prep.add_argument('--object-size-reference-mode', action='store_true',
+                      help='Require one Astra-selected object-size cluster and a visible scale reference with meter ruler')
     prep.add_argument('--allow-incomplete-evidence', action='store_true',
                       help='Prepare a static-context draft for supplemental-evidence questions')
     call = sub.add_parser('submit', help='Explicit paid model requests; serial and fail-fast')
     call.add_argument('--out', type=Path, required=True)
-    call.add_argument('--provider', choices=['openai','boyue'], default='openai')
+    call.add_argument('--provider', choices=['openai','boyue','subscription','subscription_direct'], default=None)
     call.add_argument('--key-env', help='Defaults to LLM_API_KEY or BOYUE_API_KEY')
     call.add_argument('--env-file', type=Path, default=ROOT.parent/'.env')
     call.add_argument('--model', default='gpt-6-astra')
     call.add_argument('--reasoning', choices=['low','medium','high'], default='high')
-    call.add_argument('--max-tokens', type=int, default=3600)
+    call.add_argument('--max-tokens', type=int, default=None,
+                      help='Optional API completion cap; omitted by default, prompt budget unchanged')
     call.add_argument('--limit', type=int, default=1)
     call.add_argument('--group', help='One group ID from the prepared manifest')
     build = sub.add_parser('build', help='Validate/compile cached scene JSON and merge; no model calls')
@@ -69,7 +72,11 @@ def main():
             raise ValueError('No observed target groups; provide context explicitly for global questions')
         if args.frame_cap < 4:
             raise ValueError('frame-cap must be at least four')
-        prepare(args.out.resolve(), row['question'], groups, None, args.frame_cap,
+        question=dict(row['question'])
+        if args.object_size_reference_mode:
+            question['object_size_reference_mode']=True
+            question['instance_limits']={obj:1 for obj in question['objects']}
+        prepare(args.out.resolve(), question, groups, None, args.frame_cap,
                 args.reference_cameras, cache=args.cache.resolve(), poses=args.poses.resolve())
         if requirements:
             from .reconstruction import write
@@ -78,18 +85,10 @@ def main():
             manifest['supplemental_evidence_verified']=False
             write(manifest_path,manifest)
     elif args.command == 'submit':
-        key_name = args.key_env or ('LLM_API_KEY' if args.provider == 'openai' else 'BOYUE_API_KEY')
-        config = dict(os.environ)
-        if not config.get(key_name) or (args.provider == 'boyue' and not config.get('BOYUE_BASE_URL')):
-            from dotenv import dotenv_values
-            config = {**dotenv_values(args.env_file), **config}
-        key = config.get(key_name)
-        if not key:
-            raise ValueError('Missing credential variable: '+key_name)
-        url = 'https://api.openai.com/v1' if args.provider == 'openai' else config.get('BOYUE_BASE_URL')
-        if not url:
-            raise ValueError('Missing BOYUE_BASE_URL')
-        if args.limit < 1 or args.max_tokens < 1:
+        from .api_provider import resolve
+        connection=resolve(args.provider,args.env_file,args.key_env)
+        connection.token_kwargs(args.max_tokens)
+        if args.limit < 1 or (args.max_tokens is not None and args.max_tokens < 1):
             raise ValueError('limit and max-tokens must be positive')
         manifest = read(args.out/'manifest.json')
         if args.group and args.group not in {g['group_id'] for g in manifest['groups']}:
@@ -97,7 +96,7 @@ def main():
         folders = [args.out/g['folder'] for g in manifest['groups'] if not args.group or g['group_id']==args.group]
         folders = [f for f in folders if not (f/'assets/request.json').exists() and not (f/'assets/scene-spec.json').exists()]
         for folder in folders[:args.limit]:
-            record = submit(folder, key, args.max_tokens, '', key_name, args.reasoning, base_url=url, model=args.model)
+            record = submit(folder, connection.key, args.max_tokens, '', connection.provider, args.reasoning, base_url=connection.base_url, model=args.model, provider_config=connection)
             print(record, flush=True)
             if record['status'] != 'schema_valid':
                 raise SystemExit('Stopped after failed request/validation; inspect ledger before retrying')

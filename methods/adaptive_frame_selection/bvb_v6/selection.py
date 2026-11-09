@@ -89,7 +89,7 @@ def run(args):
         # Persist public question fields only, never the answer/GT fields.
         question = {k: copy.deepcopy(v) for k, v in question.items()
                     if k in ('id', 'scene_name', 'question_type', 'question', 'options', 'roles', 'objects', 'official_clip',
-                             'retention_policy', 'query_time_s', 'interval_end_s', 'stage', 'target_description')}
+                             'retention_policy', 'instance_limits', 'query_time_s', 'interval_end_s', 'stage', 'target_description')}
         groups, audits, missing = [], {}, []
         for category in question['objects']:
             subset = [p for p in peaks if p['object'] == category]

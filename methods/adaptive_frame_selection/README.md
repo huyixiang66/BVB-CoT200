@@ -66,3 +66,7 @@ python -m bvb_v4.instance_sampling \
 ## BVB V6 最新方法
 
 [方法、输入格式和运行命令](bvb_v6/README.md)：物体框几何与 DINOv2 聚类、位姿互补选帧、无框 Astra 语义审核、每类候选覆盖保留、位姿条件最简重构与场景合并。仅方法代码和测试，无实验结果。
+
+## V8 object-size reference mode
+
+See [OBJECT_SIZE_REFERENCE.md](bvb_v6/OBJECT_SIZE_REFERENCE.md) for the single-cluster switch, visible reference and meter ruler, original-frame QA, and local uniform-FPS comparison report.

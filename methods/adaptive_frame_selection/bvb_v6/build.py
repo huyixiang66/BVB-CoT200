@@ -14,6 +14,10 @@ def run(args):
     if out.exists():
         raise FileExistsError(out)
     manifest = read(source/'manifest.json')
+    instance_record = None
+    if manifest.get('instance_resolution_required'):
+        from .instance_resolution import resolve_for_build, filter_region
+        instance_plan, instance_record, kept = resolve_for_build(source)
     out.mkdir(parents=True)
     staged = out/'fragments';staged.mkdir()
     ready, reports = [], []
@@ -34,7 +38,7 @@ def run(args):
         assets = folder/'assets'
         transport = folder/'scene-transport.json'
         if transport.exists():
-            spec, audit = expand(read(transport), read(folder/'question.json'), walls_only=True)
+            spec, audit = expand(read(transport), read(folder/'question.json'), walls_and_floor=True)
         elif (assets/'scene-spec.json').exists():
             spec, audit = read(assets/'scene-spec.json'), read(assets/'question-audit.json')
             # Revalidate the compiled schema; never execute model-authored Python.
@@ -43,6 +47,8 @@ def run(args):
         else:
             reports.append({'group_id':group['group_id'],'status':'missing_response'})
             continue
+        if instance_record is not None:
+            spec, audit = filter_region(spec, audit, group['group_id'], kept)
         if not spec['objects']:
             reports.append({'group_id':group['group_id'],'status':'empty','missing_keywords':audit['missing_keywords']})
             continue
@@ -62,13 +68,32 @@ def run(args):
         reports.append({'group_id':group['group_id'],'status':'compiled','missing_keywords':audit['missing_keywords'],
                         'target_count':len(audit['targets']),'scene_sha256':sha(dest/'scene.blend')})
     write(staged/'manifest.json',{**manifest,'groups':ready})
+    if instance_record is not None:
+        write(out/'instance-resolution.json',instance_record)
     if ready:
         execute('merge',[args.blender,'--background','--disable-autoexec','--python-exit-code','1',
                 '--python',str(ROOT/'runtime/merge_cluster_pose_scenes.py'),'--','--source',str(staged),'--out',str(out/'merged')])
-    write(out/'build.json',{'version':'bvb_v6','groups':reports,'compiled_groups':len(ready),
+    if ready and manifest.get('object_size_reference_mode'):
+        if len(ready)!=1:
+            raise ValueError('Reference-mode build requires exactly one cluster')
+        execute('reference-ruler',[args.blender,'--background','--disable-autoexec',
+                str(out/'merged/merged-scene.blend'),'--python-exit-code','1',
+                '--python',str(ROOT/'runtime/annotate_scale_reference.py'),'--',
+                '--source',str(staged),'--out',str(out/'merged')])
+    final_labels = {i['label'] for i in instance_record['decision']['instances']} if instance_record else set()
+    missing_targets = sorted(set(manifest['question']['objects'])-final_labels) if instance_record else None
+    write(out/'build.json',{'version':'bvb_v8-question-targets','groups':reports,'compiled_groups':len(ready),
                           'semantic_missing_categories':manifest.get('semantic_missing_categories',[]),
                           'missing_responses':sum(r['status']=='missing_response' for r in reports),
                           'all_groups_compiled':len(ready)==len(manifest['groups']),
                           'shared_world_preserved':bool(ready),'geometric_accuracy_verified':False,
-                          'cross_group_deduplication':False,'qa_run':False,'model_calls':0})
+                          'cross_group_deduplication':instance_record is not None,
+                          'final_instance_limits_enforced':instance_record is not None,
+                          'missing_target_categories':missing_targets,
+                          'target_coverage_complete':missing_targets == [] if instance_record else None,
+                          'final_scene_complete':instance_record is not None and missing_targets == [] and
+                              all(r['status'] in ('compiled','empty') for r in reports),
+                          'provisional_instances':sum(i['status']=='provisional' for i in instance_record['decision']['instances']) if instance_record else None,
+                          'final_instances':instance_record['decision']['instances'] if instance_record else None,
+                          'qa_run':False,'model_calls':0})
     print('Compiled',len(ready),'of',len(manifest['groups']),'groups:',out)
