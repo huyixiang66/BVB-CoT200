@@ -48,16 +48,16 @@ def solve_standing(g, q, all_items, finish, safe_location, standing_free, diagno
         current = g.unit_delta((loc[0],loc[1],0),(face[0],face[1],0))
         if g.dot(current,heading) < math.cos(math.radians(25)):
             return 100.+25*(1.-g.dot(current,heading))
-        cam = from_position([facing['box']],loc,target=face,min_lens=18.,max_lens=35.,margin=.07)
+        cam = from_position([facing['box'],query['box']],loc,target=face,min_lens=12.,max_lens=35.,margin=.07)
         if cam is None:
             return 100.
         cam.update(id='standing_continuous',method='continuous_standing_reference',ortho_scale=None)
         finish(cam,[facing,query],all_items,'standing_reference')
         cam['joint_acceptance'] = cam['acceptance']
-        cam['acceptance'] = assess_view(cam, [facing], min_area=g.MIN_AREA,
+        cam['acceptance'] = assess_view(cam, [facing,query], min_area=g.MIN_AREA,
                                         min_visible=g.MIN_VISIBLE)
-        cam['metadata'].update(standing_distance=dist, frame_keys=[facing['key']],
-            evidence_scope='standing_orientation_reference',
+        cam['metadata'].update(standing_distance=dist, frame_keys=[facing['key'],query['key']],
+            evidence_scope='standing_joint_facing_query',
             projection_check_keys=[facing['key'],query['key']],
             heading_deviation_deg=math.degrees(math.acos(max(-1.,min(1.,g.dot(current,heading))))))
         fm=cam['instance_metrics'][facing['key']]; qm=cam['instance_metrics'][query['key']]

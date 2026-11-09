@@ -94,6 +94,7 @@ manifest = {
     "blend": bpy.data.filepath,
     "resolution": [RESOLUTION, RESOLUTION],
     "engine": scene.render.engine,
+    "role_colors": "--role-colors" in sys.argv,
     "visual_inspection_allowed": True,
     "questions": [],
 }
@@ -103,6 +104,20 @@ for question in geometry["questions"]:
     qa_id = str(question["qa_id"])
     if QA_FILTER and qa_id not in QA_FILTER:
         continue
+    if '--role-colors' in sys.argv:
+        from relation_inputs import role_palette
+        for term, color in role_palette(question).items():
+            material = bpy.data.materials.new('role_' + term)
+            material.diffuse_color = (*color, 1.)
+            material.use_nodes = True
+            material.node_tree.nodes['Principled BSDF'].inputs['Base Color'].default_value = (*color, 1.)
+            for instance in groups['groups'][term]:
+                for name in instance:
+                    obj = bpy.data.objects[name]
+                    if obj.type == 'MESH':
+                        obj.data = obj.data.copy()
+                        obj.data.materials.clear()
+                        obj.data.materials.append(material)
     views = [(view, 'views') for view in question.get('chosen_readable', [])]
     if RENDER_DIAGNOSTICS:
         views += [(view, 'diagnostic_views') for view in question.get('diagnostic_views', [])]
@@ -165,6 +180,7 @@ for question in geometry["questions"]:
         record[kind].append({
             "index": index,
             "view_id": view["id"],
+            "role": view.get("metadata", {}).get("role"),
             "method": view["method"],
             "camera_type": camera.data.type,
             "location": view["location"],

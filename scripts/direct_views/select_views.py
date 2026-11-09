@@ -519,12 +519,7 @@ for q in g.questions:
             notes.append('Standing continuous evaluations: '+str(evaluations))
             layout,_=fit_group(items,items,'direction_layout',prefix='direction_layout')
             if layout:views.append(layout)
-            pair=(q['roles']['facing'][0],q['roles']['query'][0])
-            required=selected_items(q,list(pair))
-            if not any(pair_covered(v,required,pair) for v in views):
-                extra,_=fit_group(required,items,'direction_relation_support',[pair],
-                                  prefix='direction_pair',prior_views=views)
-                if extra:views.append(extra)
+
         else:
             special_status='reconstruction_missing_semantic'
 
@@ -583,7 +578,7 @@ payload={'scene':SCENE,'blend':g.bpy.data.filepath,'question_count':len(records)
     'parameters':{'margin':MARGIN,'min_area':AREA,'min_visible':VISIBLE,'max_views':MAX_VIEWS,
         'min_relation_projection':MIN_RELATION,'min_projected_short_side':MIN_SHORT_SIDE,
         'standing_offset_range':[.25,.75],'standing_eye_height':1.55,
-        'standing_lens_range':[18,35],'max_heading_deviation_deg':25,
+        'standing_lens_range':[12,35],'max_heading_deviation_deg':25,
         'relative_strategy':'accepted overview + two shared-anchor groups + missing-pair support',
         'failed_views_are_diagnostics_only':True},
     'elapsed_seconds':time.monotonic()-START,'questions':records}

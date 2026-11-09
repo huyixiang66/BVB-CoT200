@@ -46,6 +46,7 @@ def parse_args(argv=None):
                         help="Square render resolution (default: 512).")
     parser.add_argument('--render-diagnostics', action='store_true',
                         help='Also render rejected attempts separately for inspection.')
+    parser.add_argument('--role-colors', action='store_true', help='Color direction/distance targets by semantic role; no source scene changes.')
     return parser.parse_args(argv)
 
 
@@ -109,7 +110,8 @@ def load_question(path):
         {"scene": data.get("scene", "user_scene"), "groups": group_map,
          "room": {"floor": room.get("floor", []),
                   "ceiling": room.get("ceiling", []),
-                  "walls": room.get("walls", [])}},
+                  "walls": room.get("walls", []),
+                  "remove_walls": bool(room.get("remove_walls", False))}},
     )
 
 
@@ -169,6 +171,7 @@ def main(argv=None):
         "--manifest", render_manifest, "--res", args.resolution, "--scene", spec["scene"],
     ]
     if args.render_diagnostics: render_args.append('--render-diagnostics')
+    if args.role_colors: render_args.append('--role-colors')
     run_blender(args.blender, args.blend, ROOT / "scripts" / "direct_views" / "render_selected.py", render_args)
     for path in (geometry_path, render_manifest):
         attach_provenance(path, args.video, args.question)
