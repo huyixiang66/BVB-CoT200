@@ -1,0 +1,154 @@
+{
+  "scope": "Exploratory same-frame joint reconstruction: 3 pilot questions plus 4 fixed expansion questions; not a full106 benchmark",
+  "qa_model": "gpt-6-astra",
+  "effort": "high",
+  "historical_baseline_metadata": "model/effort not recorded in source attachment; original full protocol not established",
+  "source_scope": "Nov10 latest specified trials; not best-of per-question aggregation",
+  "rows": [
+    {
+      "qid": 2352,
+      "gt_cm": 172.0,
+      "status": "qa_completed",
+      "render_only": {
+        "answer": 180.0,
+        "mra": 1.0
+      },
+      "render_plus_frames": {
+        "answer": 180.0,
+        "mra": 1.0
+      },
+      "historical_uniform0125": {
+        "answer": 180,
+        "mra11": 1.0
+      }
+    },
+    {
+      "qid": 2342,
+      "gt_cm": 148.0,
+      "status": "qa_completed",
+      "render_only": {
+        "answer": 140.0,
+        "mra": 0.9090909090909091
+      },
+      "render_plus_frames": {
+        "answer": 150.0,
+        "mra": 1.0
+      },
+      "historical_uniform0125": {
+        "answer": 150,
+        "mra11": 1.0
+      }
+    },
+    {
+      "qid": 2362,
+      "gt_cm": 238.0,
+      "status": "qa_completed",
+      "render_only": {
+        "answer": 200.0,
+        "mra": 0.7272727272727273
+      },
+      "render_plus_frames": {
+        "answer": 200.0,
+        "mra": 0.7272727272727273
+      },
+      "historical_uniform0125": {
+        "answer": 200,
+        "mra11": 0.7272727272727273
+      }
+    },
+    {
+      "qid": 2340,
+      "target": "cutting board",
+      "gt_cm": 51.0,
+      "reference": "Dishwashing liquid bottle",
+      "historical_uniform0125": {
+        "answer": 35,
+        "mra11": 0.45454545454545453
+      },
+      "render_only": {
+        "answer": null,
+        "mra": 0.0,
+        "status": "not_run",
+        "reason": ""
+      },
+      "render_plus_frames": {
+        "answer": null,
+        "mra": 0.0,
+        "status": "not_run",
+        "reason": ""
+      },
+      "status": "visual_failure_no_qa",
+      "failure": "wall obscures image"
+    },
+    {
+      "qid": 2347,
+      "target": "trash can",
+      "gt_cm": 35.0,
+      "reference": "Dustpan",
+      "historical_uniform0125": {
+        "answer": 35,
+        "mra11": 1.0
+      },
+      "render_only": {
+        "answer": 45.0,
+        "mra": 0.45454545454545453,
+        "status": "completed",
+        "reason": "红色垃圾桶的最长维度应为高度；结合桶口与绿色短柄簸箕的相对比例，按常见家用垃圾桶和手持簸箕的尺寸先验，估计桶高约45厘米。簸箕实际尺寸未知，且重建形状可能失真，合理范围约35–60厘米，缺乏可靠的绝对尺度。"
+      },
+      "render_plus_frames": {
+        "answer": 33.0,
+        "mra": 0.9090909090909091,
+        "status": "completed",
+        "reason": "原视频显示目标为落地的小型长方形垃圾桶，最长方向为高度；结合桶身与桶口、旁边短柄簸箕的相对比例及常见家用垃圾桶尺寸，估计高约33厘米。簸箕尺寸未知，且重建存在穿插与形状误差，合理范围约28–40厘米，无法确定绝对尺度。"
+      },
+      "status": "qa_completed"
+    },
+    {
+      "qid": 2356,
+      "target": "tv",
+      "gt_cm": 85.0,
+      "reference": "TV cabinet",
+      "historical_uniform0125": {
+        "answer": 80,
+        "mra11": 0.9090909090909091
+      },
+      "render_only": {
+        "answer": null,
+        "mra": 0.0,
+        "status": "not_run",
+        "reason": ""
+      },
+      "render_plus_frames": {
+        "answer": null,
+        "mra": 0.0,
+        "status": "not_run",
+        "reason": ""
+      },
+      "status": "visual_failure_no_qa",
+      "failure": "reference cabinet not visible"
+    },
+    {
+      "qid": 2358,
+      "target": "kettle",
+      "gt_cm": 23.0,
+      "reference": "cutting board",
+      "historical_uniform0125": {
+        "answer": 25,
+        "mra11": 0.9090909090909091
+      },
+      "render_only": {
+        "answer": 25.0,
+        "mra": 0.9090909090909091,
+        "status": "completed",
+        "reason": "红色水壶的最长方向应为底座至壶盖的高度；其投影高度约为绿色砧板长边的三分之二，但存在透视和重建误差。结合常见家用水壶的尺寸先验，估计高约25厘米，合理范围约20–30厘米；砧板尺寸未知，无法提供可靠的绝对标尺。"
+      },
+      "render_plus_frames": {
+        "answer": 25.0,
+        "mra": 0.9090909090909091,
+        "status": "completed",
+        "reason": "原始画面中的目标是带底座的立式电热水壶，最长方向为高度（底座至壶盖）。结合其与砧板、杯具的可见比例及常见家用电热水壶的尺寸先验，估计约25厘米，合理范围约21–29厘米。砧板尺寸未知，重建也可能存在几何误差，因此无法确定绝对尺度。"
+      },
+      "status": "qa_completed"
+    }
+  ]
+}

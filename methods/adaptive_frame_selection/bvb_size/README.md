@@ -1,5 +1,7 @@
 # Size-question reference and view prototype
 
+**Latest checkpoint:** [2026-11-11 joint reference reconstruction and in-situ camera handoff](HANDOFF_20261111.md). The older extracted-object route below remains available; the new route is experimental and does not replace it.
+
 This experimental module extends the question-conditioned reconstruction workflow for single-object size estimation. It accepts an existing Blender scene and independently verified mesh groups; it does **not** perform frame selection, reconstruction, object verification, scale calibration, V8 integration or QA. It is a portable extraction of the geometry and decisions explored on 2026-11-07, not an exact replay of all earlier ad hoc experiment scripts.
 
 ## Decision
