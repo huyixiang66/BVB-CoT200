@@ -69,6 +69,9 @@ keyword below. The local compiler selects the asset kind. Keep each visible
 instance as a separate object, but do not emit legs, knobs, hinges or handles:
 the asset handles those parts. style defaults standard; round for table/stool,
 open for door/cabinet, office for chair, double for cabinet/fridge are supported.
+The style field MUST be null or exactly one of standard, round, open, office,
+double. Never put explanations or uncertainty notes in style. For wall openings,
+keep the style slot as null when skipped: [...,color,null,openings].
 
 context: [id,[target_id,...],"support",p,s,r?]. These become simple white boxes.
 The ONLY allowed relation is support: a separate object directly physically

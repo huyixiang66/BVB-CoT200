@@ -203,3 +203,7 @@ python -m unittest tests.test_visual_feedback
 ## Adaptive frame selection methods
 
 [Method implementation, dependencies, and tests](methods/adaptive_frame_selection/README.md) for question-conditioned GroundingDINO / optical-flow / LingBot / DINOv2 frame selection. This addition contains code only: no experiment outputs, generated reports, videos, images, model weights, or feature caches.
+
+## BVB V10 full workflow
+
+See [the V10 guide](methods/adaptive_frame_selection/bvb_v10/README.md) for public-question entity extraction, raw-video MM-Grounding-DINO/LingBot/Farneback features, per-question sampling and clustering, Astra review, joint pose-conditioned Blender reconstruction, view selection, single-image QA, and portable HTML reports. The default is round 0 only. Methods and tests are included; experimental media, results, weights, and credentials are not.

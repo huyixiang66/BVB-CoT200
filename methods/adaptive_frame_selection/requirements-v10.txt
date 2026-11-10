@@ -1,0 +1,5 @@
+-r requirements-reconstruction.txt
+requests
+PyJWT[crypto]
+huggingface-hub
+safetensors

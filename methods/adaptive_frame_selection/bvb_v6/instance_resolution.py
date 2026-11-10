@@ -115,6 +115,8 @@ def make_plan(source):
             candidates.append({'candidate_id':group['group_id']+'::'+t['id'],
                 'group_id':group['group_id'],'target_id':t['id'],'label':t['label'],
                 'geometry':objects[t['id']], 'frames':[r['sha256'] for r in rows]})
+            notes=[n for n in audit.get('transport_notes',[]) if n.get('target_id')==t['id']]
+            if notes:candidates[-1]['transport_notes']=notes
     if missing_groups:
         raise ValueError('Finish local reconstructions before adjudication: '+', '.join(missing_groups))
     payload = {'version':1,'question':{k:question[k] for k in

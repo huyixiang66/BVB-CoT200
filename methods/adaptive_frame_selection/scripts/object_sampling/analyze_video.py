@@ -29,7 +29,7 @@ def nms(boxes,scores,threshold=.5):
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--video',required=True,type=Path);p.add_argument('--questions',required=True,type=Path);p.add_argument('--out',required=True,type=Path)
     p.add_argument('--candidate-fps',type=float,default=1.);p.add_argument('--model',default='IDEA-Research/grounding-dino-tiny');p.add_argument('--revision',default='main');p.add_argument('--device',default='cuda:0')
-    p.add_argument('--box-threshold',type=float,default=.25);p.add_argument('--text-threshold',type=float,default=.20);p.add_argument('--stage',choices=['all','detect','flow'],default='all');a=p.parse_args()
+    p.add_argument('--box-threshold',type=float,default=.25);p.add_argument('--text-threshold',type=float,default=.20);p.add_argument('--stage',choices=['all','detect','flow','frames'],default='all');a=p.parse_args()
     if a.candidate_fps<=0:raise ValueError('candidate fps must be positive')
     out=a.out;out.mkdir(parents=True,exist_ok=True);frames=out/'frames';frames.mkdir(exist_ok=True)
     objects=json.loads(a.questions.read_text())['objects'];cap=cv2.VideoCapture(str(a.video));fps=cap.get(cv2.CAP_PROP_FPS);count=int(cap.get(cv2.CAP_PROP_FRAME_COUNT));w=int(cap.get(3));h=int(cap.get(4))

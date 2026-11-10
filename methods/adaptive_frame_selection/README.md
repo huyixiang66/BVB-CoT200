@@ -70,3 +70,7 @@ python -m bvb_v4.instance_sampling \
 ## V8 object-size reference mode
 
 See [OBJECT_SIZE_REFERENCE.md](bvb_v6/OBJECT_SIZE_REFERENCE.md) for the single-cluster switch, visible reference and meter ruler, original-frame QA, and local uniform-FPS comparison report.
+
+## V10 joint reconstruction
+
+[V10 full workflow and commands](bvb_v10/README.md) packages the current per-question sampling/review front end and a single joint pose-conditioned scene generator. Use `python -m bvb_v10.workflow --help` for entities, raw-video features, run, QA, and reports. Historical V3–V8 modules remain as explicit dependencies and comparisons.
