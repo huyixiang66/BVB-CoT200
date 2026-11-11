@@ -1,0 +1,12 @@
+{
+  "video": "/data/video.mp4",
+  "out": "/data/runs/room-size",
+  "v10_root": "/code/BVB-CoT200/methods/adaptive_frame_selection",
+  "poses": "/data/lingbot/poses",
+  "frames_root": "/data/cached-original-frames",
+  "detections": "/data/detector/local-cache/detections.jsonl",
+  "question": "请估计视频展示的房间总地板面积，单位为平方米。如果包括多个房间，请估计它们的合计面积。",
+  "reference_fps": 0.125,
+  "blender": "blender",
+  "qa_mode": "upper"
+}

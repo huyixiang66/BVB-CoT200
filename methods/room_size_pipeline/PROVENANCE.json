@@ -1,0 +1,15 @@
+{
+  "upstream_branch": "methods/bvb-v10_2-full-pipeline-20261110",
+  "upstream_commit": "7568fce70c45",
+  "base_v10_commit": "5e2355e157f6",
+  "verified_upstream_files": {
+    "bvb_v10/prompt.py": "605eb7da577a5b6f0f3789e4987e8a83dcc9e6d9f8b89b7303cc6c6bfab4e1f5",
+    "bvb_v10/original-bvb-prompt.txt": "b0df0e20c9e8d147a70376fe7e83e078405aace8766e983a0c4a3d33afdd8ca6",
+    "bvb_v10_2/pipeline.py": "0d8be056a52cabc3520cb8fa76934d2fb8c7e5811d9a760c6c594de9b8fe9a9b",
+    "bvb_v10_2/reference.py": "b7d26d5a3b495caec6d83128ea76a09dac6adcc5f72724db2a58042347b59270",
+    "bvb_v6/reconstruction.py": "0271489af7bde12ff1f560893a6969af3d76eef80bb888c115fcb863bbd8b942",
+    "bvb_v6/runtime/compact_pose_input.py": "890a3e17f460afafd94a2a0ffdcbe38b67ebac55045a4ca6b6a563d19d299e9e"
+  },
+  "adapted_postprocessing": "frozen room hard-dimensions enforce.py and validate.py; dimensions and region IDs are data, not case branches",
+  "model_calls_during_validation": 0
+}
