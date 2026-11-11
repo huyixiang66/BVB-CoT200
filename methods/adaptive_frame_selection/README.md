@@ -74,3 +74,8 @@ See [OBJECT_SIZE_REFERENCE.md](bvb_v6/OBJECT_SIZE_REFERENCE.md) for the single-c
 ## V10 joint reconstruction
 
 [V10 full workflow and commands](bvb_v10/README.md) packages the current per-question sampling/review front end and a single joint pose-conditioned scene generator. Use `python -m bvb_v10.workflow --help` for entities, raw-video features, run, QA, and reports. Historical V3–V8 modules remain as explicit dependencies and comparisons.
+
+
+## V10_2 全流程
+
+[完整轨迹＋软空间锚点联合重构、选视角及QA](bvb_v10_2/README.md)，基于原V10，支持可配置LingBot关键帧间隔和已有审核帧的位姿替换。只发布方法文件。

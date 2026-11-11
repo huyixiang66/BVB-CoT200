@@ -207,3 +207,8 @@ python -m unittest tests.test_visual_feedback
 ## BVB V10 full workflow
 
 See [the V10 guide](methods/adaptive_frame_selection/bvb_v10/README.md) for public-question entity extraction, raw-video MM-Grounding-DINO/LingBot/Farneback features, per-question sampling and clustering, Astra review, joint pose-conditioned Blender reconstruction, view selection, single-image QA, and portable HTML reports. The default is round 0 only. Methods and tests are included; experimental media, results, weights, and credentials are not.
+
+
+## V10_2 全流程
+
+[完整轨迹＋软空间锚点联合重构、选视角及QA](methods/adaptive_frame_selection/bvb_v10_2/README.md)，基于原V10，支持可配置LingBot关键帧间隔和已有审核帧的位姿替换。只发布方法文件。
