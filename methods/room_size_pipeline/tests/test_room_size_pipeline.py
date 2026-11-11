@@ -106,6 +106,24 @@ class GeometryTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'Missing aligned'):validate_scene(spec,scene)
 
 
+    def test_distinct_spaces_allow_uncased_opening_but_not_narrow_gap(self):
+        spec,scene=fixtures()
+        annex=copy.deepcopy(spec['regions'][0]);annex.update(id='annex',space_id='second')
+        spec['regions'].append(annex)
+        ref=copy.deepcopy(spec['references'][0]);ref.update(id='second-bed',region_id='annex')
+        spec['references'].append(ref)
+        scene['layout']['annex']={'origin':[4,0],'swap':False}
+        spec['connections']=[{'regions':['room','annex'],'kind':'open'}]
+        scene['openings']=[{'region':'room','side':'east','start':1,'end':2},
+                           {'region':'annex','side':'west','start':1,'end':2}]
+        validate_scene(spec,scene)
+        scene['openings'][1]['end']=1.6
+        with self.assertRaisesRegex(ValueError,'Missing aligned'):validate_scene(spec,scene)
+        scene['openings'][1]['end']=2
+        annex['space_id']='room'
+        with self.assertRaisesRegex(ValueError,'Missing aligned'):validate_scene(spec,scene)
+
+
 class PipelineTests(unittest.TestCase):
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup)
@@ -173,6 +191,31 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(python_answer('```python\nimport bpy\n```').strip(),'import bpy')
         with self.assertRaises(SyntaxError):python_answer('invalid python !!!')
         with self.assertRaises(ValueError):python_answer('{"objects": []}')
+
+    def test_engine_compatibility_only_changes_engine_assignment(self):
+        from room_size_pipeline.v10_adapter import python_answer
+        code='import bpy\nlabel="BLENDER_EEVEE_NEXT"\nbpy.context.scene.render.engine="BLENDER_EEVEE_NEXT"\n'
+        result=python_answer(code)
+        self.assertIn('label="BLENDER_EEVEE_NEXT"',result)
+        self.assertIn("render.engine='BLENDER_EEVEE'",result)
+        self.assertEqual(python_answer(result),result)
+
+    def test_default_renderer_uses_integrated_postprocessor(self):
+        from room_size_pipeline import v10_adapter
+        out=self.root/'render-test';dest=out/'render';dest.mkdir(parents=True)
+        (dest/'scene.blend').write_bytes(b'fixture')
+        with patch.object(v10_adapter.sys,'platform','linux'), \
+             patch.object(v10_adapter.shutil,'which',return_value='/usr/bin/bwrap'), \
+             patch.object(v10_adapter.subprocess,'run') as process:
+            v10_adapter.render({'blender':'blender'},out)
+        self.assertEqual(process.call_count,2)
+        script=Path(process.call_args_list[1].args[0][process.call_args_list[1].args[0].index('--python')+1])
+        self.assertEqual(script.name,'blender_scene.py')
+        text=script.read_text(encoding='utf8')
+        self.assertIn('measurement_exclude_axes',text)
+        self.assertIn('measurement_matrix',text)
+        self.assertNotIn('repair_contracts',text)
+        self.assertIn('ratio>=.8 and area>=.005 and complete',text)
 
 
 if __name__=='__main__':unittest.main()

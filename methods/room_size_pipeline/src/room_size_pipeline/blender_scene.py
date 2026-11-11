@@ -4,7 +4,7 @@ import math
 import sys
 from pathlib import Path
 import bpy
-from mathutils import Vector, Matrix
+from mathutils import Vector, Matrix, Euler
 from bpy_extras.object_utils import world_to_camera_view
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
@@ -60,12 +60,18 @@ def build(out):
     for ref in spec['references']:
         obs=groups.get(ref['id'],[])
         if not obs:raise ValueError('Reference absent: '+ref['id'])
-        if any(o.get('region_id')!=ref['region_id'] for o in obs):raise ValueError('Reference region mismatch')
+        spaces={x['id']:x['space_id'] for x in spec['regions']}
+        if any(spaces[o.get('region_id')]!=spaces[ref['region_id']] for o in obs):raise ValueError('Reference physical space mismatch')
         angles=[float(o['reference_yaw']) for o in obs]
         if max(angles)-min(angles)>1e-5:raise ValueError('Inconsistent reference assembly axes')
         rotation=Matrix.Rotation(-angles[0],4,'Z')
-        points=[rotation@o.matrix_world@Vector(v) for o in obs for v in o.bound_box]
-        sizes=[max(p[i] for p in points)-min(p[i] for p in points) for i in range(3)]
+        if 'reference_euler' in obs[0]:rotation=Euler(tuple(obs[0]['reference_euler']),'XYZ').to_matrix().to_4x4().inverted()
+        sizes=[]
+        for axis in range(3):
+            measured=[o for o in obs if axis not in list(o.get('measurement_exclude_axes',[]))]
+            if not measured:raise ValueError('No measurement components for reference axis')
+            points=[(Matrix([list(x) for x in o['measurement_matrix']]) if 'measurement_matrix' in o else rotation)@o.matrix_world@Vector(v) for o in measured for v in o.bound_box]
+            sizes.append(max(p[axis] for p in points)-min(p[axis] for p in points))
         validate_reference_size(ref,sizes)
         world=[o.matrix_world@Vector(v) for o in obs for v in o.bound_box]
         center=[(min(p[i] for p in world)+max(p[i] for p in world))/2 for i in range(3)]
@@ -91,8 +97,13 @@ def build(out):
     bpy.context.view_layer.update();deps=bpy.context.evaluated_depsgraph_get()
     candidates=[]
     for ref in spec['references']:
-        if any(a not in [0,1] for a in ref['qa_axes']):continue
-        obs=groups[ref['id']];pts=[o.matrix_world@Vector(v) for o in obs for v in o.bound_box]
+        if not {0,1}.issubset(ref['qa_axes']):continue
+        ref=dict(ref,qa_axes=[0,1])
+        obs=groups[ref['id']]
+        if 'reference_euler' in obs[0]:
+            rotation=Euler(tuple(obs[0]['reference_euler']),'XYZ').to_matrix()
+            if any(abs(rotation.col[a].z)>.1 for a in ref['qa_axes']):continue
+        pts=[o.matrix_world@Vector(v) for o in obs for v in o.bound_box]
         x0,x1=min(p.x for p in pts),max(p.x for p in pts);y0,y1=min(p.y for p in pts),max(p.y for p in pts)
         # Compare scene ray visibility against isolated reference hits (not bbox fill ratio).
         hit_ref=visible=0
@@ -110,6 +121,7 @@ def build(out):
         projected=[world_to_camera_view(scene,cam,p) for p in pts]
         area=(max(p.x for p in projected)-min(p.x for p in projected))*(max(p.y for p in projected)-min(p.y for p in projected))
         complete=all(.01<=p.x<=.99 and .01<=p.y<=.99 for p in projected)
+        print("REFERENCE_VISIBILITY",ref["id"],ratio,area,complete,flush=True)
         if ratio>=.8 and area>=.005 and complete:
             candidates.append((area*ratio,ref,ratio))
     if not candidates:

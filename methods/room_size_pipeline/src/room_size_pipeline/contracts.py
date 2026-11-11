@@ -102,7 +102,8 @@ def validate_scene(spec, scene):
                 if ea[0] != eb[0] or abs(ea[1] - eb[1]) > 1e-5: continue
                 lo, hi = max(ea[2], eb[2]), min(ea[3], eb[3])
                 clear = min(ea[2]+oa['end'], eb[2]+ob['end']) - max(ea[2]+oa['start'], eb[2]+ob['start'])
-                if link['kind'] == 'open':
+                spaces={r['id']:r['space_id'] for r in spec['regions']}
+                if link['kind'] == 'open' and spaces[a]==spaces[b]:
                     matched |= hi > lo and clear >= hi-lo-1e-5
                 else: matched |= clear >= .7
         require(matched, f'Missing aligned {link["kind"]} connection {a}/{b}')

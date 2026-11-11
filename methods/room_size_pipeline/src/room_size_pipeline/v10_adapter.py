@@ -110,6 +110,23 @@ def python_answer(answer):
     if not any(isinstance(n,ast.Import) and any(a.name=='bpy' for a in n.names) or
                isinstance(n,ast.ImportFrom) and n.module=='bpy' for n in ast.walk(tree)):
         raise ValueError('Expected upstream Blender Python, not a JSON layout')
+    # Blender 5.x renamed this engine. Change only literal render.engine assignments;
+    # keep the original model response in reconstruct/result.json for auditing.
+    lines=code.encode('utf8').splitlines(keepends=True)
+    offsets=[0]
+    for line in lines:offsets.append(offsets[-1]+len(line))
+    edits=[]
+    for node in ast.walk(tree):
+        if not isinstance(node,ast.Assign) or not isinstance(node.value,ast.Constant):continue
+        if node.value.value!='BLENDER_EEVEE_NEXT':continue
+        if not any(isinstance(t,ast.Attribute) and t.attr=='engine' and
+                   isinstance(t.value,ast.Attribute) and t.value.attr=='render' for t in node.targets):continue
+        value=node.value
+        edits.append((offsets[value.lineno-1]+value.col_offset,
+                      offsets[value.end_lineno-1]+value.end_col_offset))
+    raw=code.encode('utf8')
+    for start,end in sorted(edits,reverse=True):raw=raw[:start]+b"'BLENDER_EEVEE'"+raw[end:]
+    code=raw.decode('utf8')
     return code
 
 
