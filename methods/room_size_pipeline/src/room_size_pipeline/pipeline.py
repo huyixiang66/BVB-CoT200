@@ -53,7 +53,7 @@ def invoke(out, stage, prompt, image_paths, backend, validator=None, content=Non
 def run(config, backend=None, until='qa', selector=None, renderer=None, preparer=None):
     if until not in STAGES:raise ValueError('Unknown stage')
     allowed={'video','out','reference_fps','ffprobe','blender','qa_mode','question',
-             'v10_root','poses','frames_root','detections'}
+             'v10_root','poses','frames_root','detections','selection_mode'}
     if set(config)-allowed:raise ValueError('Unexpected config keys; scoring data must stay outside pipeline')
     config=dict(config);config.setdefault('question',prompts.QA_BASE)
     if not isinstance(config['question'],str) or not config['question'].strip():raise ValueError('Empty question')

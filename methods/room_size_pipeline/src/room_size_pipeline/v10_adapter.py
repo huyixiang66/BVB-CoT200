@@ -39,7 +39,27 @@ def select(config,out):
     duration=float(json.loads(subprocess.check_output([config.get('ffprobe','ffprobe'),'-v','error',
                    '-show_format','-of','json',str(config['video'])],text=True))['format']['duration'])
     candidates=[{'timestamp_s':s['timestamp_s'],'c2w_blender':cams[i].tolist()} for i,s in enumerate(samples)]
-    times,report=choose_frames(duration,candidates,config.get('reference_fps',.125))
+    selection_mode=config.get('selection_mode','coverage_dino')
+    if selection_mode == 'coverage_dino':
+        from .coverage_selection import choose_coverage_frames
+        times,report=choose_coverage_frames(config,samples,cams)
+        import math
+        report['reference_count']=max(1,math.ceil(duration*config.get('reference_fps',.125)))
+        report['reference_is_cap']=False
+    elif selection_mode == 'light_pose_quality':
+        from .light_selection import choose_light_frames, thumbnail_sharpness
+        for row,sample in zip(candidates,samples):
+            if Path(sample['filename']).name != sample['filename']:
+                raise ValueError('Sampling filename must be a basename')
+            source=frames_root/sample['filename']
+            if sha256(source) != sample['sha256']:
+                raise ValueError('Original frame does not match LingBot sampling hash')
+            row['sharpness']=thumbnail_sharpness(source)
+        times,report=choose_light_frames(duration,candidates,config.get('reference_fps',.125))
+    elif selection_mode == 'camera_diversity':
+        times,report=choose_frames(duration,candidates,config.get('reference_fps',.125))
+    else:
+        raise ValueError('Unknown selection_mode: '+selection_mode)
     chosen=set(times);out.mkdir(parents=True,exist_ok=True);frames=[]
     for i,s in enumerate(samples):
         if s['timestamp_s'] not in chosen:continue

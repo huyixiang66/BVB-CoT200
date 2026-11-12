@@ -8,5 +8,6 @@
   "question": "请估计视频展示的房间总地板面积，单位为平方米。如果包括多个房间，请估计它们的合计面积。",
   "reference_fps": 0.125,
   "blender": "blender",
-  "qa_mode": "upper"
+  "qa_mode": "upper",
+  "selection_mode": "coverage_dino"
 }

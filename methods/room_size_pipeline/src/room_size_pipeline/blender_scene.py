@@ -10,6 +10,7 @@ from bpy_extras.object_utils import world_to_camera_view
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from room_size_pipeline.contracts import validate_scene, edge, validate_reference_size, validate_bounds
 from room_size_pipeline.pipeline import read, write
+from room_size_pipeline.measurement import measurement_exclusions
 
 
 def build(out):
@@ -66,16 +67,18 @@ def build(out):
         if max(angles)-min(angles)>1e-5:raise ValueError('Inconsistent reference assembly axes')
         rotation=Matrix.Rotation(-angles[0],4,'Z')
         if 'reference_euler' in obs[0]:rotation=Euler(tuple(obs[0]['reference_euler']),'XYZ').to_matrix().to_4x4().inverted()
+        exclusions={o.name:measurement_exclusions(ref,o) for o in obs}
         sizes=[]
         for axis in range(3):
-            measured=[o for o in obs if axis not in list(o.get('measurement_exclude_axes',[]))]
+            measured=[o for o in obs if axis not in exclusions[o.name]]
             if not measured:raise ValueError('No measurement components for reference axis')
             points=[(Matrix([list(x) for x in o['measurement_matrix']]) if 'measurement_matrix' in o else rotation)@o.matrix_world@Vector(v) for o in measured for v in o.bound_box]
             sizes.append(max(p[axis] for p in points)-min(p[axis] for p in points))
         validate_reference_size(ref,sizes)
         world=[o.matrix_world@Vector(v) for o in obs for v in o.bound_box]
         center=[(min(p[i] for p in world)+max(p[i] for p in world))/2 for i in range(3)]
-        actual.append({'id':ref['id'],'actual_local_size_m':sizes})
+        actual.append({'id':ref['id'],'actual_local_size_m':sizes,
+                       'measurement_exclusions':{name:axes for name,axes in exclusions.items() if axes}})
         byid[ref['id']]={'id':ref['id'],'label':ref['label'],'position':center,'size_m':sizes}
     areas=[]
     for key,p in rects.items():

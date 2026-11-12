@@ -11,5 +11,7 @@
     "bvb_v6/runtime/compact_pose_input.py": "890a3e17f460afafd94a2a0ffdcbe38b67ebac55045a4ca6b6a563d19d299e9e"
   },
   "adapted_postprocessing": "frozen room hard-dimensions enforce.py and validate.py; dimensions and region IDs are data, not case branches",
-  "model_calls_during_validation": 0
+  "model_calls_during_validation": 0,
+  "selection_update": "2026-11-12 coverage + pitch + position groups + cached DINO + transitions; matched nine cached pilot manifests",
+  "measurement_update": "Source-scoped rim height and door-leaf thickness; no per-case IDs or geometry edits"
 }

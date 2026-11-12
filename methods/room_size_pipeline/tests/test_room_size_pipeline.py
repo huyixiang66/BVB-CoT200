@@ -65,7 +65,7 @@ class SelectionTests(unittest.TestCase):
             write(poses/'sampling.json',{'frames':[{'filename':'000000.jpg','timestamp_s':0,'source_frame_index':0,'sha256':sha256(original)}]})
             modules={'bvb_v6.reconstruction':SimpleNamespace(shared_pose=lambda *a:([Matrix()],[Matrix()],{}))}
             with patch('room_size_pipeline.v10_adapter.load',return_value=modules),patch('room_size_pipeline.v10_adapter.subprocess.check_output',return_value='{"format":{"duration":8}}'):
-                result=select({'v10_root':str(root),'poses':str(poses),'frames_root':str(frames),'video':str(video)},root/'out')
+                result=select({'v10_root':str(root),'poses':str(poses),'frames_root':str(frames),'video':str(video),'selection_mode':'camera_diversity'},root/'out')
             self.assertEqual(len(result['frames']),1)
             self.assertEqual(result['frames'][0]['sha256'],sha256(original))
 
@@ -212,7 +212,7 @@ class PipelineTests(unittest.TestCase):
         script=Path(process.call_args_list[1].args[0][process.call_args_list[1].args[0].index('--python')+1])
         self.assertEqual(script.name,'blender_scene.py')
         text=script.read_text(encoding='utf8')
-        self.assertIn('measurement_exclude_axes',text)
+        self.assertIn('measurement_exclusions(ref,o)',text)
         self.assertIn('measurement_matrix',text)
         self.assertNotIn('repair_contracts',text)
         self.assertIn('ratio>=.8 and area>=.005 and complete',text)
