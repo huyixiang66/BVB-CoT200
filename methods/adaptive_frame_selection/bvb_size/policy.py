@@ -9,6 +9,19 @@ def load_priors(path=None):
     return json.loads(path.read_text(encoding='utf-8'))
 
 
+def reference_requirement(category, priors):
+    """Decide target policy independently of candidate availability."""
+    category = category.strip().lower()
+    rules = json.loads(Path(__file__).with_name('target_reference_policy.json').read_text(encoding='utf-8'))['categories']
+    if category in rules:
+        return rules[category]['use_reference'], 'paired20'
+    if category in priors['reliable']:
+        return False, 'target_prior_reliable'
+    if category in priors['unreliable']:
+        return True, 'target_prior_unreliable'
+    return False, 'unknown_target_category'
+
+
 def choose_reference(target, candidates, priors):
     """Return (candidate, reason); unknown or unverified inputs fail closed.
 
@@ -17,10 +30,9 @@ def choose_reference(target, candidates, priors):
     already share a reliable scale; this routine does not establish one.
     """
     category = target['category'].strip().lower()
-    if category in priors['reliable']:
-        return None, 'target_prior_reliable'
-    if category not in priors['unreliable']:
-        return None, 'unknown_target_category'
+    required, reason = reference_requirement(category, priors)
+    if not required:
+        return None, 'paired20_target_only' if reason == 'paired20' else reason
     target_size = max(target['extent'])
     if target_size <= 0:
         return None, 'invalid_target_extent'

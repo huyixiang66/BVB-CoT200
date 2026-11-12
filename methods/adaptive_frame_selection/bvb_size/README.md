@@ -1,43 +1,43 @@
-# Size-question reference and view prototype
+# Object-size pipeline：交接与发布准备
 
-**Latest checkpoint:** [2026-11-11 joint reference reconstruction and in-situ camera handoff](HANDOFF_20261111.md). The older extracted-object route below remains available; the new route is experimental and does not replace it.
+本模块是 object-size 实验的分阶段实现，依赖同仓库的 V10 前端与 `methods/room_size_pipeline/src/room_size_pipeline` 调用后端。
 
-This experimental module extends the question-conditioned reconstruction workflow for single-object size estimation. It accepts an existing Blender scene and independently verified mesh groups; it does **not** perform frame selection, reconstruction, object verification, scale calibration, V8 integration or QA. It is a portable extraction of the geometry and decisions explored on 2026-11-07, not an exact replay of all earlier ad hoc experiment scripts.
+## 实验流程
 
-## Decision
+1. **前端**：给出视频和问题，复用或运行上游 V10 的检测、光流、峰值筛选和聚类；LingBot 提供与原帧绑定的相机位姿。候选检测不保证是真目标，缓存应核对场景、帧号、时间及哈希。上游源码、模型和特征不在本快照内。
+2. **目标和参照审核**：从候选组选出真实目标；按 `target_reference_policy.json` 和 `priors.json` 决定是否找同帧参照。类别规则来自 20 题开发实验，未知类别目前回退为仅目标；模型确认和边界判断并不保证真实正确。审核仅目标组的代表帧，必要时应补充其他候选组。`2318`、`2383` 用了其他题同场景缓存帧重新审核。
+3. **联合重建**：将所选组所有原帧、逐帧位姿和目标/参照角色送入模型，生成 Blender 代码。使用 V10 的模板和数据约定做适配，不能称作完整未修改的 V10 端到端复现。构建应在 Linux bubblewrap 隔离环境进行，禁止直接无沙箱执行生成代码。
+4. **选视角和人工检查**：有参照时在场景中优先尝试同图，不满足约束时尝试同焦距、朝向和距离的两张图；仅目标时使用独立目标渲染，优先选择减少水平长边透视压缩的方向。若两种联合视角均不合格且射线确认被结构墙挡住，暂时隐藏实际击中的墙并重新求解；通过时记录被隐藏的墙，未通过则保留原始诊断结果。不会因太小或被非墙物体遮挡而自动去墙，也不会移除地板或所有上下文。渲染与原始场景均不会改变物体缩放。几何通过仍要查看图像：遮挡、侧视、物体身份和比例都可能出错。`unresolved` 不能作为已通过视角的 QA 输入。
+5. **QA**：检查通过后输入建模图以及该组全部原始重建帧，再附原问题；本次使用 Astra High，每题保留输入、结果、失败和未知消耗。最后用 VSI MRA 数值评分。失败不可记成零分；失败的重试需独立目录，成功的调用不重复。
 
-`priors.json` records user judgments about whether model size knowledge is reliable. A reliable target is shown without a reference. For an unreliable target, `choose_reference` chooses among independently verified candidates whose categories have reliable priors and are not in `poor_reference`. It ranks the ratio of reconstructed maximum extents, accepting ratios from 0.25 to 4.0. Kettle, blanket and printer are excluded as references; kettle and printer can still be reliable **targets**. Unknown categories and missing candidates produce a target-only fallback with a reason.
+62 题的原帧每题 4 或 8 张，重建图通常 1–2 张。`2366` 的参考物视角没有通过，使用单目标视角及原帧的回退输入；其模型形状和目标范围有疑问。部分其他题的识别或重建比例也存在不确定性，需保留审核记录。
 
-All candidates must be in the same calibrated scene, have `verified: true`, and contain complete non-overlapping mesh groups. `verified` is an assertion from the caller, not an automatic visual validation. An object being large or a VLM prior being reliable does **not** establish the actual object size or a correct shared 3D scale.
+## 文件
 
-## Render
+- `methods/adaptive_frame_selection/bvb_size/`：证据导出、参照策略、审核及输入准备、生成模型调用、隔离构建、渲染、视觉审核、QA、MRA 和测试。
+- `methods/room_size_pipeline/src/room_size_pipeline/`：同仓库共享的后端与调用辅助模块，object-size 不使用 room-size 的建模方法。
+- 视角修复已接入默认流程：单目标方向改进，以及按射线检测结果选择性隐藏结构墙的重试。默认修复与历史隐藏墙和 context 的个别实验变体不是相同实现。
+- `vsi-size-62-results.json`：62 题原始预测、GT、MRA 和 0.125 FPS 对照；不含原帧、模型响应、个人路径及凭据。可以按需决定是否发布数据。
 
-Use Blender 4+ with an existing scene. Provide one JSON file such as:
+## 使用边界
 
-```json
-{
-  "question": "What is the bowl's longest dimension in centimeters?",
-  "target": {"id": "bowl-1", "category": "bowl", "meshes": ["bowl_body"], "verified": true},
-  "candidates": [{"id": "pan-1", "category": "pan", "meshes": ["pan_body", "pan_handle"], "verified": true}]
-}
-```
+代码中的阶段接口为 `python -m bvb_size.batch_workflow --help`，另有 `handoff`、`export_evidence` 和 `visual_review` CLI。入口从上游已准备的 evidence 和模型模板开始；前端特征提取、证据生成、跨机器传输、补检、视角不合格后的重渲染及备用目标搜寻仍需调用方串联。订阅后端需要外部客户端和用户自行授权，账户信息和凭据不随包提供；也可以通过实现后端接口接自己的模型。
 
-Run from the `methods/adaptive_frame_selection` directory:
+默认构建与视角阶段要求 Linux、bubblewrap 和 Blender；先在目标机器验证隔离和资源限制。`linux_build.py --probe` 的个人路径断言已删除，只做写入探针，不能作为完整隔离验证。
 
-```sh
-blender -b /path/to/scene.blend --python bvb_size/render_size.py -- /path/to/groups.json /path/to/output
-```
+## 实验结果及口径
 
-`main.png` shows the target and an optional reference after moving the reference **in memory**, without scaling; the input blend is never saved. Output `manifest.json` records the selection, suggested question prompt, image paths and diagnostics. A second view is rendered if the target projection is under 200 pixels or its estimated longest axis retains under 80% of its length. A small-target detail or high-angle complement has a different scale from the main image; do not compare pixel lengths between images. The second image is explicitly listed in `manifest.json`; callers must pass all listed images to QA.
+VSI 七场景 62 题，本轮方法 MRA **77.42%**，0.125 FPS 原帧 baseline **75.22%**。Baseline 汇合历史结果和补跑结果，部分历史模型/提示词配置未完整留存，因此这不是完全同配置的严格对照；参照规则也来自小规模开发数据，不能据此推断跨数据集泛化。QA 输入帧数更少不等于完整流程总 token/成本更低，审核和重建调用也需计入。
 
-The view uses an oblique geometric heuristic to expose multiple faces. It is not a semantic recognition model, does not guarantee absence of occlusion, and does not automatically compare original video against the generated scene. If VLM identification, reconstruction, or shared scale is unreliable, inspect the original frames and treat the output as diagnostic. The bounding-box direction is an approximation and can be wrong for rotated objects or deformable objects such as blankets.
-
-## QA and experiments
-
-`reference_prompt` supplies the experimental English prompt and optionally identifies the target on the left and reference on the right. It does not call an API or require a subscription. Use the caller's approved inference interface, record the actual input images, model, tokens and failed attempts, and score VSI numeric questions using `evaluation.vsi_mean_relative_accuracy` on parsed numeric values. An unparseable answer should be recorded separately, not silently assigned a score. Prior experiments on 24 available questions included unequal input budgets (original-frame baseline versus one reconstruction image); they do not establish the performance of this extracted implementation. Five of 29 targets lacked verified geometry in the old scenes. No benchmark frames, predictions, credentials, blend files or weights are distributed here.
-
-## Test
+## 基础检查
 
 ```sh
-python -m unittest bvb_size.test_policy
+cd methods/adaptive_frame_selection
+export PYTHONPATH="../room_size_pipeline/src:$PYTHONPATH"
+python -m unittest bvb_size.test_policy bvb_size.test_handoff bvb_size.test_inference bvb_size.test_workflow bvb_size.test_view_repair
+python -m bvb_size.batch_workflow --help
 ```
+
+真实视频、LingBot/DINO 权重和缓存、原始输入帧、Blender 场景、账号、密钥及本机/服务器专用脚本不包含在这个待发布快照中。
+
+视角修复已通过离线单元测试，但此次合入前尚未对新自动重试在真实 Blender 场景重新做端到端渲染验证。

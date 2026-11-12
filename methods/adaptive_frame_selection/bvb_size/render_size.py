@@ -74,7 +74,10 @@ def main():
                     mat.diffuse_color = shader.inputs['Base Color'].default_value
     size = Vector(target['extent'])
     elevation = math.radians(25 if size.z >= max(size.x, size.y) else 35)
-    view = Vector((math.cos(math.pi/4)*math.cos(elevation), -math.sin(math.pi/4)*math.cos(elevation), math.sin(elevation)))
+    # Aim across the target's longer horizontal world-space axis to reduce foreshortening.
+    horizontal = Vector((.12, -1, 0)) if size.x >= size.y else Vector((1, .12, 0))
+    horizontal.normalize()
+    view = Vector((horizontal.x*math.cos(elevation), horizontal.y*math.cos(elevation), math.sin(elevation)))
     rot = (-view).to_track_quat('-Z','Y'); right = rot @ Vector((1,0,0)); up = rot @ Vector((0,1,0))
     if ref_objects:
         a, b = projected(target_objects,right,up), projected(ref_objects,right,up)

@@ -10,8 +10,8 @@ class PolicyTests(unittest.TestCase):
         self.pan={'id':'pan','category':'pan','extent':[.4,.3,.1],'verified':True}
 
     def test_reliable_target_does_not_request_reference(self):
-        target=dict(self.target, category='printer')
-        self.assertEqual(choose_reference(target,[self.pan],self.priors),(None,'target_prior_reliable'))
+        target=dict(self.target, category='monitor')
+        self.assertEqual(choose_reference(target,[self.pan],self.priors),(None,'paired20_target_only'))
 
     def test_excluded_and_unverified_candidates_are_not_selected(self):
         printer=dict(self.pan,id='printer',category='printer')
@@ -24,6 +24,18 @@ class PolicyTests(unittest.TestCase):
         giant=dict(self.pan,id='large',extent=[5,3,2])
         self.assertEqual(choose_reference(self.target,[giant,self.pan],self.priors)[0]['id'],'pan')
         self.assertEqual(choose_reference(dict(self.target,category='unknown'),[self.pan],self.priors)[1],'unknown_target_category')
+
+    def test_paired20_target_decision_is_separate_from_reference_reliability(self):
+        for category in ('refrigerator','bowl','printer','table lamp'):
+            self.assertEqual(choose_reference(dict(self.target,category=category),[self.pan],self.priors)[1], 'reference_selected')
+        for category in ('cutting board','blanket','table','sofa','trash can'):
+            self.assertEqual(choose_reference(dict(self.target,category=category),[self.pan],self.priors)[1], 'paired20_target_only')
+        printer=dict(self.pan,id='printer',category='printer')
+        self.assertEqual(choose_reference(self.target,[printer],self.priors)[1], 'no_eligible_reference')
+
+    def test_unseen_categories_retain_prior_fallback(self):
+        self.assertEqual(choose_reference(dict(self.target,category='chair'),[self.pan],self.priors)[1], 'reference_selected')
+        self.assertEqual(choose_reference(dict(self.target,category='unseen'),[self.pan],self.priors)[1], 'unknown_target_category')
 
     def test_view_trigger_and_prompt(self):
         self.assertTrue(needs_detail(150,.9))

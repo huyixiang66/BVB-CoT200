@@ -1,0 +1,114 @@
+{
+  "source": "size-oblique-paired20-20261108/comparison.json",
+  "tie_policy": "without_reference",
+  "categories": {
+    "cutting board": {
+      "use_reference": false,
+      "n": 2,
+      "with_mra": 0.5454545454545454,
+      "without_mra": 0.6363636363636364
+    },
+    "monitor": {
+      "use_reference": false,
+      "n": 1,
+      "with_mra": 0.9090909090909091,
+      "without_mra": 1.0
+    },
+    "table": {
+      "use_reference": false,
+      "n": 1,
+      "with_mra": 0.6363636363636364,
+      "without_mra": 0.6363636363636364
+    },
+    "keyboard": {
+      "use_reference": false,
+      "n": 1,
+      "with_mra": 0.9090909090909091,
+      "without_mra": 1.0
+    },
+    "door": {
+      "use_reference": false,
+      "n": 2,
+      "with_mra": 0.9545454545454546,
+      "without_mra": 0.9545454545454546
+    },
+    "bed": {
+      "use_reference": false,
+      "n": 1,
+      "with_mra": 0.6363636363636364,
+      "without_mra": 0.8181818181818182
+    },
+    "laptop": {
+      "use_reference": false,
+      "n": 1,
+      "with_mra": 0.7272727272727273,
+      "without_mra": 0.7272727272727273
+    },
+    "trash can": {
+      "use_reference": false,
+      "n": 1,
+      "with_mra": 0.7272727272727273,
+      "without_mra": 0.7272727272727273
+    },
+    "refrigerator": {
+      "use_reference": true,
+      "n": 1,
+      "with_mra": 1.0,
+      "without_mra": 0.45454545454545453
+    },
+    "sofa": {
+      "use_reference": false,
+      "n": 1,
+      "with_mra": 0.18181818181818182,
+      "without_mra": 0.6363636363636364
+    },
+    "tv": {
+      "use_reference": false,
+      "n": 1,
+      "with_mra": 0.7272727272727273,
+      "without_mra": 0.8181818181818182
+    },
+    "kettle": {
+      "use_reference": false,
+      "n": 1,
+      "with_mra": 1.0,
+      "without_mra": 1.0
+    },
+    "bowl": {
+      "use_reference": true,
+      "n": 1,
+      "with_mra": 0.6363636363636364,
+      "without_mra": 0.45454545454545453
+    },
+    "pan": {
+      "use_reference": false,
+      "n": 1,
+      "with_mra": 0.8181818181818182,
+      "without_mra": 1.0
+    },
+    "blanket": {
+      "use_reference": false,
+      "n": 1,
+      "with_mra": 0.5454545454545454,
+      "without_mra": 0.7272727272727273
+    },
+    "telephone": {
+      "use_reference": false,
+      "n": 1,
+      "with_mra": 1.0,
+      "without_mra": 1.0
+    },
+    "printer": {
+      "use_reference": true,
+      "n": 1,
+      "with_mra": 0.9090909090909091,
+      "without_mra": 0.6363636363636364
+    },
+    "table lamp": {
+      "use_reference": true,
+      "n": 1,
+      "with_mra": 0.36363636363636365,
+      "without_mra": 0.0
+    }
+  }
+}

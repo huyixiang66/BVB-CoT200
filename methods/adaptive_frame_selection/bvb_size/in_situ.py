@@ -15,6 +15,9 @@ import bpy
 from mathutils import Vector
 from bpy_extras.object_utils import world_to_camera_view
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from view_repair import wall_retry_candidates
+
 
 LIMITS = dict(margin=.05, minimum_area=.025, minimum_short_side=.08,
               minimum_unblocked_rays=.75, maximum_distance_ratio=1.15,
@@ -101,12 +104,15 @@ def main():
         penalty = sum(max(margin-p.x, 0, p.x-(1-margin)) + max(margin-p.y, 0, p.y-(1-margin))
                       + (10 if p.z <= 0 else 0) for p in uv)
         hits = own = mutual = 0
+        wall_hits = set()
         dep = bpy.context.evaluated_depsgraph_get()
         for point in g['samples']:
             delta = point-cam.location
             hit, _, _, _, obj, _ = scene.ray_cast(dep, cam.location, delta.normalized(), distance=delta.length+1e-4)
             # Same-object self-occlusion is not an environmental obstruction.
             name = obj.original.name if hit else None
+            if hit and name not in pair_names and obj.original.get('role') == 'structure' and obj.original.get('category') == 'wall':
+                wall_hits.add(name)
             own += bool(name in g['names'])
             mutual += bool(contact and name in pair_names and name not in g['names'])
             hits += bool(name in g['names'] or (contact and name in pair_names))
@@ -114,7 +120,8 @@ def main():
                     area=width*height, short_side=min(width, height),
                     unblocked_ray_fraction=hits/max(len(g['samples']), 1),
                     own_visible_fraction=own/max(len(g['samples']), 1),
-                    normal_mutual_cover_fraction=mutual/max(len(g['samples']), 1))
+                    normal_mutual_cover_fraction=mutual/max(len(g['samples']), 1),
+                    wall_occluders=sorted(wall_hits))
 
     def evaluate(x, pair):
         azimuth, elevation, distance = x
@@ -173,13 +180,38 @@ def main():
         chosen['evaluations'] = evaluations
         return chosen
 
-    common = solve(False)
-    if common['blockers'] and source_camera_position is not None:
-        fallback = solve(False, source_start=True)
-        if not fallback['blockers'] or fallback['loss'] < common['loss']:
-            common = fallback
-    pair = solve(True) if common['blockers'] or args.check_pair else None
-    mode = 'single' if not common['blockers'] else ('pair' if not pair['blockers'] else 'unresolved')
+    def solve_views():
+        common = solve(False)
+        if common['blockers'] and source_camera_position is not None:
+            fallback = solve(False, source_start=True)
+            if not fallback['blockers'] or fallback['loss'] < common['loss']:
+                common = fallback
+        pair = solve(True) if common['blockers'] or args.check_pair else None
+        mode = 'single' if not common['blockers'] else ('pair' if not pair['blockers'] else 'unresolved')
+        return common, pair, mode
+
+    common, pair, mode = solve_views()
+    original_attempt = dict(mode=mode, common=common, pair=pair)
+    hidden_walls = []
+    if mode == 'unresolved':
+        names = wall_retry_candidates(mode, common, pair)
+        if names:
+            for name in sorted(names):
+                obj = scene.objects.get(name)
+                if obj and obj.type == 'MESH' and obj.get('role') == 'structure' and obj.get('category') == 'wall':
+                    hidden_walls.append((obj, obj.hide_render, obj.hide_get()))
+                    obj.hide_render = True
+                    obj.hide_set(True)
+            bpy.context.view_layer.update()
+            if hidden_walls:
+                retry_common, retry_pair, retry_mode = solve_views()
+                if retry_mode != 'unresolved':
+                    common, pair, mode = retry_common, retry_pair, retry_mode
+                else:
+                    for obj, prior_render, prior_hidden in hidden_walls:
+                        obj.hide_render = prior_render
+                        obj.hide_set(prior_hidden)
+                    bpy.context.view_layer.update()
     selected = common if mode == 'single' else pair
     # Normalize illumination for native-scale scenes; do not alter geometry.
     for light in scene.objects:
@@ -211,12 +243,18 @@ def main():
             scene.render.filepath = str(args.out/filename)
             bpy.ops.render.render(write_still=True)
             images.append(filename)
+    used_hidden_walls = [obj.name for obj, _, _ in hidden_walls] if mode != 'unresolved' else []
+    for obj, prior_render, prior_hidden in hidden_walls:
+        obj.hide_render = prior_render
+        obj.hide_set(prior_hidden)
+    bpy.context.view_layer.update()
     assert original == {o.name: ([list(r) for r in o.matrix_world], o.hide_render)
                         for o in scene.objects if o.type == 'MESH'}
     assert hashlib.sha256(args.blend.read_bytes()).hexdigest() == digest
     report = dict(source=str(args.blend), source_sha256=digest, mode=mode, images=images,
                   limits=LIMITS, contact_bounds_overlap=contact, common=common, pair=pair, pair_diagnostic_only=bool(args.check_pair and mode=='single'),
                   geometry_and_visibility_unchanged=True, qa_run=False,
+                  original_attempt=original_attempt, hidden_walls_for_render=used_hidden_walls,
                   method='continuous coordinate descent; source camera initialization fallback on failure; no fixed camera grid or global optimality guarantee',
                   limitations=['ray first-hit sampling is not pixel visibility or semantic recognition',
                                'same world orientation does not guarantee matching semantic front faces',
