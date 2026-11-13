@@ -270,7 +270,7 @@ def main():
     p.add_argument('--execute',action='store_true')
     p.add_argument('--env-file',type=Path)
     p.add_argument('--model',default='gpt-6-astra')
-    p.add_argument('--provider',choices=['openai','boyue','subscription','subscription_direct'])
+    p.add_argument('--provider',choices=['openai','boyue','subscription','subscription_direct','subscription_direct_4'])
     a=p.parse_args()
     print(json.dumps(run(a.source,a.execute,a.env_file,a.model,a.provider),ensure_ascii=False))
 

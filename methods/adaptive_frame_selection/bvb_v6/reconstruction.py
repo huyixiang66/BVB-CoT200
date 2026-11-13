@@ -239,7 +239,7 @@ def submit(folder, key, max_tokens, attempt, api_alias, reasoning, *, base_url, 
     started = time.monotonic()
     try:
         from .api_provider import create_client
-        client = create_client(connection, timeout=request_timeout if connection.provider!='subscription_direct' else max(900,request_timeout))
+        client = create_client(connection, timeout=request_timeout if connection.provider not in ('subscription_direct','subscription_direct_4') else max(900,request_timeout))
         response = client.chat.completions.create(model=record["model"], reasoning_effort=record["reasoning_effort"],
                   **token_kwargs, messages=[{"role": "user", "content": content}])
         choice = response.choices[0]

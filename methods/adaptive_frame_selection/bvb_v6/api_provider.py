@@ -3,7 +3,8 @@ from dataclasses import dataclass, field
 import os
 from urllib.parse import urlsplit
 
-PROVIDERS=('openai','boyue','subscription','subscription_direct')
+DIRECT_PROVIDERS=('subscription_direct','subscription_direct_4')
+PROVIDERS=('openai','boyue','subscription',*DIRECT_PROVIDERS)
 
 
 @dataclass(frozen=True)
@@ -15,14 +16,14 @@ class Connection:
     def token_kwargs(self, cap):
         if cap is not None and (type(cap) is not int or cap<1):
             raise ValueError('Output token cap must be a positive integer')
-        if self.provider in ('subscription','subscription_direct') and cap is not None:
+        if self.provider in ('subscription',*DIRECT_PROVIDERS) and cap is not None:
             raise ValueError('Subscription transport cannot enforce an output token cap; omit --max-tokens')
         return {} if cap is None else {'max_completion_tokens':cap}
 
     def metadata(self):
         # A fork URL can contain a capability/session ID: never log it.
-        return {'provider':self.provider,'transport':'responses_stream' if self.provider=='subscription_direct' else ('local_codex_proxy' if self.provider=='subscription' else 'chat_completions'),
-                'usage_basis':'subscription_reported_tokens' if self.provider in ('subscription','subscription_direct') else 'api_reported_tokens'}
+        return {'provider':self.provider,'transport':'responses_stream' if self.provider in DIRECT_PROVIDERS else ('local_codex_proxy' if self.provider=='subscription' else 'chat_completions'),
+                'usage_basis':'subscription_reported_tokens' if self.provider in ('subscription',*DIRECT_PROVIDERS) else 'api_reported_tokens'}
 
 
 def resolve(provider=None, env_file=None, key_env=None, environ=None):
@@ -31,14 +32,16 @@ def resolve(provider=None, env_file=None, key_env=None, environ=None):
     provider=provider or cfg.get('BVB_API_PROVIDER') or 'openai'
     if provider not in PROVIDERS:
         raise ValueError('Unknown API provider')
-    if provider=='subscription_direct':
+    if provider in DIRECT_PROVIDERS:
         if key_env:raise ValueError('Direct subscription uses OAuth, not key-env')
         import importlib.util
         from pathlib import Path
         helper=Path(__file__).resolve().parents[1]/'scripts/subscription_direct_client.py'
         spec=importlib.util.spec_from_file_location('bvb_direct_oauth',helper)
         module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
-        return Connection(provider,'https://api.openai.com/v1',module.access_token())
+        account='account4' if provider=='subscription_direct_4' else module.account_name(cfg.get('BVB_DIRECT_ACCOUNT','default'))
+        provider='subscription_direct_4' if account=='account4' else 'subscription_direct'
+        return Connection(provider,'https://api.openai.com/v1',module.access_token(account))
     if provider=='subscription':
         if key_env and key_env!='BVB_PROXY_API_KEY':
             raise ValueError('Subscription must use its separate BVB_PROXY_API_KEY')
@@ -61,7 +64,7 @@ def resolve(provider=None, env_file=None, key_env=None, environ=None):
 
 
 def create_client(connection,timeout=600):
-    if connection.provider=='subscription_direct':
+    if connection.provider in DIRECT_PROVIDERS:
         from .direct_subscription import DirectClient
         return DirectClient(connection,timeout)
     from openai import OpenAI

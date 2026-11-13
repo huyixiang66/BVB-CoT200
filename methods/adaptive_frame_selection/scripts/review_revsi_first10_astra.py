@@ -11,7 +11,7 @@ sys.path.insert(0,str(METHOD))
 from bvb_v6 import semantic_review as sr, coverage
 from bvb_v6.api_provider import resolve, create_client
 
-OUT=ROOT/'outputs/v10-audit'
+OUT=ROOT/'outputs/v11-audit'
 REVIEW=OUT/'input/review'
 PROMPT='''Determine the candidate-cluster retention policy separately for each supplied question.
 Use only the public question, options and object roles; do not answer the question.

@@ -83,6 +83,16 @@ def execute(out,blender,render=False):
     cmd=['/usr/bin/sandbox-exec','-f',str(out/'execution.sb'),blender,'--background','--disable-autoexec','--python-exit-code','1']
     if render:
         shutil.copy2(HERE/'runtime/render.py',out/'render.py');shutil.copy2(HERE/'contract.py',out/'v10_contract.py')
+        if read(out/'experiment.json').get('version')=='bvb_v11':
+            shutil.copy2(ROOT/'bvb_v11/runtime_occlusion.py',out/'runtime_occlusion.py')
+            script=(out/'render.py').read_text()
+            script=script.replace('points=points_for(meshes);views=[]',
+                'from runtime_occlusion import render_with_overhead_removal\nocclusion_reports=[]\npoints=points_for(meshes);views=[]')
+            script=script.replace("path=out/'views'/(name+'.png');s.render.filepath=str(path);bpy.ops.render.render(write_still=True)",
+                "path=out/'views'/(name+'.png')\n    occlusion_reports.append(render_with_overhead_removal(s,overview,meshes,path,out,name))")
+            script=script.replace("(out/'views/views.json').write_text", "(out/'occlusion-report.json').write_text(json.dumps(dict(views=occlusion_reports,geometry_modified=False,visibility_restored=True),indent=2))\n(out/'views/views.json').write_text")
+            script=script.replace('dict(views=views)', 'dict(views=views,overhead_occlusion_removed=True)')
+            (out/'render.py').write_text(script)
         cmd += [str(out/'scene.blend'),'--python',str(out/'render.py'),'--',str(out)]
     else:
         # Validation runs in the same Blender process before results are accepted.

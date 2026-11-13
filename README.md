@@ -1,3 +1,11 @@
+# BVB V11 integration
+
+Current version: **11.0.0**, branch `v_11`. [Seven-task architecture, setup, commands and scope](methods/adaptive_frame_selection/bvb_v11/README.md).
+
+The original project documentation follows. V11 is an isolated release of the current task adapters; historical results and local credentials are not included.
+
+---
+
 # BVB-CoT200：Blender 场景 → 八类 CoT → 单次答案
 
 从已有 **BVB Astra / Luna xhigh `.blend`** 出发，运行固定的 200 道 VSI-Bench 问题（八类各 25 题、126 个场景）。场景来源与 QA 模型独立选择，**每题只请求一次，不做三次采样或投票。**

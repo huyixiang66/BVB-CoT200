@@ -38,7 +38,7 @@ def main():
                       help='Prepare a static-context draft for supplemental-evidence questions')
     call = sub.add_parser('submit', help='Explicit paid model requests; serial and fail-fast')
     call.add_argument('--out', type=Path, required=True)
-    call.add_argument('--provider', choices=['openai','boyue','subscription','subscription_direct'], default=None)
+    call.add_argument('--provider', choices=['openai','boyue','subscription','subscription_direct','subscription_direct_4'], default=None)
     call.add_argument('--key-env', help='Defaults to LLM_API_KEY or BOYUE_API_KEY')
     call.add_argument('--env-file', type=Path, default=ROOT.parent/'.env')
     call.add_argument('--model', default='gpt-6-astra')

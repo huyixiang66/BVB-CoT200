@@ -191,7 +191,7 @@ def admitted(review):
 def main():
     p=argparse.ArgumentParser();p.add_argument('stage',choices=['prepare','submit','export']);p.add_argument('--source',type=Path,required=True)
     p.add_argument('--limit',type=int,default=1);p.add_argument('--max-tokens',type=int,default=None)
-    p.add_argument('--provider',choices=['openai','boyue','subscription','subscription_direct'])
+    p.add_argument('--provider',choices=['openai','boyue','subscription','subscription_direct','subscription_direct_4'])
     p.add_argument('--env-file',type=Path,default=Path(__file__).resolve().parents[1]/'.env')
     a=p.parse_args()
     if a.stage=='prepare':prepare(a.source)
@@ -201,7 +201,7 @@ def main():
     else:
         from .api_provider import resolve
         connection=resolve(a.provider,a.env_file)
-        cap=a.max_tokens if a.max_tokens is not None else (None if connection.provider in ('subscription','subscription_direct') else 4096)
+        cap=a.max_tokens if a.max_tokens is not None else (None if connection.provider in ('subscription','subscription_direct','subscription_direct_4') else 4096)
         connection.token_kwargs(cap)
         if a.limit<1:raise ValueError('limit must be positive')
         submit(a.source,connection.key,limit=a.limit,max_tokens=cap,provider_config=connection)

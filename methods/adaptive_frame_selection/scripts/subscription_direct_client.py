@@ -8,6 +8,17 @@ API='https://api.openai.com/v1'
 STATE=ROOT/'.local/siwc-direct'
 
 
+def account_name(account=None):
+    account=account or os.environ.get('BVB_DIRECT_ACCOUNT','default')
+    if account not in ('default','account4'):
+        raise ValueError('BVB_DIRECT_ACCOUNT must be default or account4')
+    return account
+
+
+def account_state(account=None):
+    return STATE if account_name(account)=='default' else ROOT/'.local/siwc-direct-account4'
+
+
 def atomic_private(path,data):
     fd,tmp=tempfile.mkstemp(dir=path.parent)
     try:
@@ -17,11 +28,12 @@ def atomic_private(path,data):
         if os.path.exists(tmp):os.unlink(tmp)
 
 
-def access_token():
-    path=STATE/'credentials.json'
-    if not path.exists():raise RuntimeError('Authorize first with scripts/test_subscription_direct.py')
-    with (STATE/'refresh.lock').open('a') as lock:
-        os.chmod(STATE/'refresh.lock',0o600);fcntl.flock(lock,fcntl.LOCK_EX)
+def access_token(account=None):
+    account=account_name(account);state=account_state(account)
+    path=state/'credentials.json'
+    if not path.exists():raise RuntimeError('Authorize first with scripts/test_subscription_direct.py --account '+account)
+    with (state/'refresh.lock').open('a') as lock:
+        os.chmod(state/'refresh.lock',0o600);fcntl.flock(lock,fcntl.LOCK_EX)
         old=json.loads(path.read_text())
         if 'chatgpt.tokens.use.direct' not in old.get('scopes',[]):raise RuntimeError('Direct plan usage not granted')
         if time.time()<old['saved_at']+old['expires_in']-120:return old['access_token']
@@ -49,7 +61,8 @@ def image_item(path):
     return {'type':'input_image','detail':'high','image_url':'data:'+mime+';base64,'+base64.b64encode(p.read_bytes()).decode()}
 
 
-def request(folder,content,*,model='gpt-6-astra',effort='high',instructions=None):
+def request(folder,content,*,model='gpt-6-astra',effort='high',instructions=None,account=None):
+    account=account_name(account)
     folder=Path(folder);folder.mkdir(parents=True,exist_ok=True)
     body={'model':model,'input':[{'role':'user','content':content}],'reasoning':{'effort':effort},'store':False,'stream':True}
     if instructions:body['instructions']=instructions
@@ -57,14 +70,15 @@ def request(folder,content,*,model='gpt-6-astra',effort='high',instructions=None
     path=folder/'request.json'
     if path.exists():
         old=json.loads(path.read_text())
+        if old.get('account','default')!=account:raise RuntimeError('Account changed; use new attempt folder')
         if old['fingerprint']!=fingerprint:raise RuntimeError('Inputs changed; use new attempt folder')
         if old['status']=='completed':return old
         raise RuntimeError('Prior attempt not completed; inspect before retry')
-    token=access_token()
+    token=access_token(account)
     catalog=requests.get(API+'/models',headers={'Authorization':'Bearer '+token},timeout=40)
     if catalog.status_code!=200:raise RuntimeError('Catalog HTTP '+str(catalog.status_code))
     if model not in [r.get('slug') for r in catalog.json().get('models',[])]:raise RuntimeError('Requested model unavailable')
-    record={'provider':'chatgpt_oauth_direct','model_requested':model,'effort':effort,'fingerprint':fingerprint,'status':'started','usage':None,'started_unix':time.time(),'answer':''}
+    record={'provider':'chatgpt_oauth_direct' if account=='default' else 'subscription_direct_4','account':account,'model_requested':model,'effort':effort,'fingerprint':fingerprint,'status':'started','usage':None,'started_unix':time.time(),'answer':''}
     with path.open('x') as f:json.dump(record,f,indent=2)
     (folder/'input-text.json').write_text(json.dumps({'instructions':instructions,'text_blocks':[x['text'] for x in content if x['type']=='input_text'],'image_count':sum(x['type']=='input_image' for x in content)},ensure_ascii=False,indent=2))
     start=time.monotonic()

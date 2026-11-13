@@ -243,7 +243,7 @@ def main():
     p.add_argument('--selection',type=Path);p.add_argument('--out',type=Path,required=True);p.add_argument('--arm',default='roi_robust')
     p.add_argument('--limit',type=int,default=0);p.add_argument('--max-tokens',type=int,default=None)
     p.add_argument('--env-file',type=Path,default=Path(__file__).resolve().parents[1]/'.env')
-    p.add_argument('--provider',choices=['openai','boyue','subscription','subscription_direct'])
+    p.add_argument('--provider',choices=['openai','boyue','subscription','subscription_direct','subscription_direct_4'])
     a=p.parse_args()
     if a.stage=='prepare':
         if not a.selection:p.error('--selection required')
@@ -253,7 +253,7 @@ def main():
         from .api_provider import resolve
         connection=resolve(a.provider,a.env_file)
         key=connection.key
-        cap=a.max_tokens if a.max_tokens is not None else (None if connection.provider in ('subscription','subscription_direct') else 8192)
+        cap=a.max_tokens if a.max_tokens is not None else (None if connection.provider in ('subscription','subscription_direct','subscription_direct_4') else 8192)
         connection.token_kwargs(cap)
         m=read(a.out/'manifest.json');assert m['prompt_sha256'] in [digest(PROMPT),digest(PROMPT_LEGACY)] and m['schema_sha256']==digest(SCHEMA)
         pending=[gid for gid in m['jobs'] if not (a.out/'jobs'/gid/'request.json').exists()]

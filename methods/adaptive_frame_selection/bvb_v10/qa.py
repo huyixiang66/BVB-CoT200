@@ -11,6 +11,7 @@ def parse(text):
 
 def qa(out):
  q=read(out/'question-public.json');legend='Target label colors (RGBA): '+json.dumps(read(out/'input.json')['colors'])+'. White/gray geometry represents evidenced walls, floor, openings, and direct supports or contacts. Colors are labels, not independent verification.'
+ if read(out/'experiment.json').get('version')=='bvb_v11':legend+=' Higher non-target occluders may be hidden per view for visibility. Targets remain in place; this display cutaway does not imply missing support or changed geometry.'
  views=read(out/'views/views.json')['views']
  if not (out/'view-selection/selection.json').exists():
   content=[dict(type='input_text',text='Select ONE supplied view best showing relevant objects and their horizontal relationship. Do not answer the question. Return JSON {"view_id":"supplied id","reason":"Chinese reason","limitations":"Chinese limitations"}.\n'+json.dumps(q,ensure_ascii=False)+'\n'+legend)]

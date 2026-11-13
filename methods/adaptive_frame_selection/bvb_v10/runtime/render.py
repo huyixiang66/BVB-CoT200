@@ -55,7 +55,10 @@ for i,row in enumerate(rows):
     k=row['intrinsics_640x480'];fx,fy,cx,cy=k[0][0],k[1][1],k[0][2],k[1][2]
     d.lens=fx*36/640;d.shift_x=(320-cx)/640;d.shift_y=(cy-240)*(fx/fy)/640
     cam['timestamp_s']=row['timestamp_s'];cam['source_frame_index']=row['source_frame_index'];cam['intrinsics_json']=json.dumps(k)
-    s.camera=cam;s.render.resolution_x=640;s.render.resolution_y=480;s.render.pixel_aspect_x=1;s.render.pixel_aspect_y=fx/fy
+    # Blender clamps each pixel-aspect component to >= 1. Preserve y/x=fx/fy
+    # even when fx < fy, rather than silently clamping the ratio to 1.
+    s.camera=cam;s.render.resolution_x=640;s.render.resolution_y=480
+    s.render.pixel_aspect_x=max(1.,fy/fx);s.render.pixel_aspect_y=max(1.,fx/fy)
     bpy.context.view_layer.update();errs=[]
     for u,v in [(0,0),(640,0),(640,480),(0,480),(320,240)]:
         cp=Vector(((u-cx)/fx,-(v-cy)/fy,-1));wp=cam.matrix_world@cp
