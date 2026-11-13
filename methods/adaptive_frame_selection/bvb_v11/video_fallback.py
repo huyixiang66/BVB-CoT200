@@ -5,9 +5,14 @@ this module never turns a locator guess into an accepted reconstruction target.
 import shutil,subprocess,sys,json,math
 from pathlib import Path
 from bvb_v10.pipeline import ROOT,read,save,sha
+from .retrieval_policy import FULL_VIDEO_RETRIEVAL_ENABLED
 DEFAULT=dict(enabled=False,fps=1,scope='only_missing_categories',requires_semantic_review=True)
 
 def locate(video,question,missing,out,enabled=False):
+    if not FULL_VIDEO_RETRIEVAL_ENABLED:
+        save(out/'status.json',dict(stage='disabled',missing_categories=missing,fps=1,search_performed=False))
+        if enabled:raise RuntimeError('Full-video fallback retrieval is disabled by the current inference policy')
+        return None
     if not enabled:
         save(out/'status.json',dict(stage='disabled',missing_categories=missing,fps=1))
         return None

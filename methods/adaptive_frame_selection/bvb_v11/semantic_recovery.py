@@ -9,6 +9,7 @@ import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
 from bvb_v10.pipeline import ROOT, METHOD, read, save, sha
+from .retrieval_policy import FULL_VIDEO_RETRIEVAL_ENABLED,admitted_only
 
 from .common import video_path
 
@@ -72,6 +73,12 @@ def apply(data, recovered):
 
 def recover_selection(base, sid, source, destination):
     """One shared full-video search per scene, plus independent clean identity audits."""
+    if not FULL_VIDEO_RETRIEVAL_ENABLED:
+        result=admitted_only(read(source));save(destination,result)
+        save(base/'semantic-no-retrieval'/sid/'receipt.json',dict(enabled=False,search_performed=False,
+            source_sha256=sha(source),selection_sha256=sha(destination),
+            unresolved_questions={qid:r['coverage_missing_categories'] for qid,r in result['questions'].items() if r['coverage_missing_categories']}))
+        return destination
     from .candidate_recovery import canonical_frames, proposals_to_groups
     from .video_fallback import locate
     sys.path.insert(0, str(METHOD))
@@ -141,6 +148,9 @@ def ensure_question_selection(base, qid):
     q = next(q for q in read(base/'questions.public.json') if str(q['id']) == str(qid))
     source = base/'scenes'/q['scene_name']/'input/review/reviewed-selection.json'
     data = read(source); row = data['questions'][str(qid)]
+    if not FULL_VIDEO_RETRIEVAL_ENABLED:
+        destination=base/'semantic-no-retrieval'/q['scene_name']/'reviewed-selection.json'
+        return recover_selection(base,q['scene_name'],source,destination)
     if row.get('semantic_recovery', {}).get('completed'): return source
     if not any(triggered_categories(r) for r in data['questions'].values()): return source
     dest = base/'semantic-recovery'/q['scene_name']/'reviewed-selection.json'
@@ -152,6 +162,9 @@ def ensure_prepared(source, poses):
     manifest = read(source/'manifest.json'); groups = manifest['groups']
     reviews=[read(source/g['folder']/'semantic-review.json') for g in groups]
     bad = [g for g,r in zip(groups,reviews) if r['status'] in {'reject','uncertain'}]
+    if not FULL_VIDEO_RETRIEVAL_ENABLED:
+        if bad:raise ValueError('Only positively reviewed groups may be prepared; full-video retrieval is disabled')
+        return source
     audit_rows=[]
     receipt=source/'semantic-source.json'
     if receipt.exists():

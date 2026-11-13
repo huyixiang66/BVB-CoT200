@@ -6,6 +6,7 @@ import copy,fcntl,hashlib,json,os,shlex,shutil,subprocess,tarfile
 from pathlib import Path
 from bvb_v10.pipeline import ROOT,read,save,sha
 from .video_fallback import locate
+from .retrieval_policy import FULL_VIDEO_RETRIEVAL_ENABLED
 from .common import video_path
 
 def canonical_frames(base,sid):
@@ -71,6 +72,7 @@ def proposals_to_groups(proposals,category,rows,cache):
     return groups
 
 def search_category(base,sid,category):
+    if not FULL_VIDEO_RETRIEVAL_ENABLED:raise RuntimeError('Full-video retrieval disabled; missing evidence must not become a zero count')
     from bvb_v6 import semantic_review as sr
     from bvb_v6.api_provider import resolve
     root=base/'fallback'/sid/hashlib.sha256(category.encode()).hexdigest()[:16];root.mkdir(parents=True,exist_ok=True)
@@ -115,6 +117,7 @@ def search_category(base,sid,category):
         return accepted
 
 def recover_question(base,qid,missing):
+    if not FULL_VIDEO_RETRIEVAL_ENABLED:raise RuntimeError('Full-video retrieval disabled; unresolved categories: '+', '.join(missing))
     cfg=read(base/'run-config.json')
     if not cfg.get('missing_object_video_fallback',{}).get('enabled'):raise RuntimeError('Missing-candidate video fallback disabled')
     q=next(q for q in read(base/'questions.public.json') if str(q['id'])==str(qid));sid=q['scene_name']

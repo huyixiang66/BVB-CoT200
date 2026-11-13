@@ -1,6 +1,6 @@
 {
   "date": "2026-11-13",
-  "unit_tests": 47,
+  "unit_tests": 50,
   "unit_test_command": "python -m unittest discover -s tests_v11 -p 'test_*.py'",
   "blender_occlusion": "passed: stacked covers, lower support, adjacent mesh, protected target, hollow mesh, restored visibility",
   "real_packet_preparation": [
@@ -10,5 +10,6 @@
   "raw_frame_cli": "passed: synthetic 640x480 video, 2 fps frames-only mode",
   "new_model_accuracy_evaluation": false,
   "room_source_commit": "d4bc0c876917c0e2b8620fbea025475859548c83",
-  "room_scope": "Existing scene backend only; unchanged upstream selector; five live QA runs belong to the separate cost study"
+  "room_scope": "Existing scene backend only; unchanged upstream selector; five live QA runs belong to the separate cost study",
+  "full_video_retrieval_enabled": false
 }

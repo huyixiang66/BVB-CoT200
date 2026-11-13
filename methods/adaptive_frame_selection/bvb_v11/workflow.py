@@ -60,7 +60,7 @@ def run(selection,cache,poses,video,out,blender,reference_selection=None,scale_p
         if (out/'workflow-input.json').exists() and read(out/'workflow-input.json')!=identity:raise ValueError('Inputs changed; use a fresh output directory')
         save(out/'workflow-input.json',identity)
         cfg=dict(poses={sid:str(poses)},videos={sid:str(video)},scenes=[sid],counting_mode=task=='counting',counting_allow_all_rejected=task=='counting',
-            scale_reference_policy='stable_dimensions_only',scale_policy=scale_policy,missing_object_video_fallback=dict(enabled=True))
+            scale_reference_policy='stable_dimensions_only',scale_policy=scale_policy,missing_object_video_fallback=dict(enabled=False))
         save(out/'run-config.json',cfg);save(out/'questions.public.json',public)
         packet=out/'packets'/sid;packet.mkdir(parents=True,exist_ok=True)
         if not (packet/'cache').exists():(packet/'cache').symlink_to(cache,target_is_directory=True)

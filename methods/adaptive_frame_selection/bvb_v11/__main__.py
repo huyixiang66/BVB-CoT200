@@ -20,7 +20,7 @@ def main():
     p=sub.add_parser('audit',help='Fresh Astra question policy and clean-image candidate review')
     for name in ['selection','out']:p.add_argument('--'+name,type=Path,required=True)
     p.add_argument('--counting-mode',action='store_true')
-    p=sub.add_parser('workflow',help='Reviewed selection -> recovery -> reference -> reconstruction -> QA')
+    p=sub.add_parser('workflow',help='Reviewed selection -> positive admission -> reference -> reconstruction -> QA')
     for name in ['selection','cache','poses','video','out']:p.add_argument('--'+name,type=Path,required=True)
     p.add_argument('--reference-selection',type=Path,help='Optional positively reviewed same-scene clusters for third-object reference candidates')
     p.add_argument('--scale-policy',choices=['stable','width-largest'],default='stable')

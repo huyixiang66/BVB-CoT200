@@ -15,7 +15,7 @@ def group(category,status,gid):
 
 
 class SemanticTests(unittest.TestCase):
-    def test_standalone_prepare_checks_excluded_audits_from_provenance(self):
+    def test_disabled_retrieval_keeps_positive_groups_without_search(self):
         with tempfile.TemporaryDirectory() as temp:
             root=Path(temp);source=root/'prepared';review=root/'review';cache=root/'cache'
             q=dict(id=1,scene_name='scene',objects=['chair'])
@@ -28,8 +28,9 @@ class SemanticTests(unittest.TestCase):
                 row=read(selection)['questions']['1']
                 self.assertEqual(recovery.triggered_categories(row),['chair'])
                 raise RuntimeError('recovery invoked')
-            with patch.object(recovery,'recover_selection',side_effect=recovered), self.assertRaisesRegex(RuntimeError,'recovery invoked'):
-                recovery.ensure_prepared(source,root/'poses')
+            with patch.object(recovery,'recover_selection',side_effect=recovered) as call:
+                self.assertEqual(recovery.ensure_prepared(source,root/'poses'),source)
+                call.assert_not_called()
 
     def test_rejected_excluded_candidate_triggers_even_with_positive_selected(self):
         for task in ['object_counting','object_abs_distance','object_rel_distance','object_size','room_size','route']:

@@ -11,7 +11,7 @@ historical answers, or experiment output directories.
 video → 2 fps frame / DINO / optical-flow / LingBot caches
       → question-specific peaks → appearance and pose clusters
       → Astra question policy, clean-image identity review, instance comparison
-      → reject/uncertain/missing category: 1 fps full-video search + clean re-review
+      → retain positively reviewed groups; unresolved categories remain insufficient
       → admitted clusters + task-specific structural context
       → one joint Astra bpy reconstruction with soft trajectory/surface anchors
       → execution / category validation → render candidates → select views → QA
@@ -27,7 +27,7 @@ Public questions and visual evidence enter inference; reference answers do not.
 | Relative direction | Soft anchors, 9 candidate views, select 1, imagined standing/facing direction |
 | Relative distance | Multiple instances, category coverage and colors, 13 candidates, 3 complementary views |
 | Absolute distance | Stable physical dimension selected from an endpoint or third cluster; 2-second temporal bridge plus uncovered camera-position representatives; 3 views; metres |
-| Counting | Counting-only 0.25 peak threshold, no singleton cap, nearest-neighbour instance colors, 3 views; recovery before zero-evidence handling |
+| Counting | Counting-only 0.25 peak threshold, no singleton cap, nearest-neighbour instance colors, 3 views; unresolved evidence cannot be treated as zero |
 | Object size | Longest complete physical dimension, 3 views; centimetres |
 | Route planning | 16 uniform layout frames, keep walls and openings, top + 2 oblique views; validate action order |
 | Room size | Existing `.blend` + explicit floor/ceiling mapping → geometry-only top-view selection → fresh Astra area QA |
@@ -47,6 +47,16 @@ Reference dimensions are common-sense priors with uncertainty, never measured
 calibration. Unavailable/invalid references stop the run instead of silently using
 an unstable ruler. Camera-position groups do not denote rooms; temporal bridge
 coverage does not guarantee reconstruction stability or a direct spatial corridor.
+
+## Full-video retrieval is OFF
+
+Per the current user instruction, reject/uncertain candidates no longer trigger
+1 fps whole-video searches. Existing positive candidates remain eligible; uncertain
+or rejected candidates are not promoted. Missing confirmed categories stop the
+question as insufficient evidence. Neither a missing cluster nor disabled retrieval
+is proof of zero objects. The locator and both candidate-recovery entry points are
+guarded; an old `enabled=true` run configuration cannot override the disabled policy.
+Previously recorded search receipts and historical costs are retained.
 
 ## Installation and verification
 
@@ -107,15 +117,13 @@ frames. Without this extra catalog, references come from the supplied admitted
 clusters, including the question endpoints. Do not assume a nonexistent all-scene
 object detector is run implicitly.
 
-Recovery needs the full exact 1 fps subset of the canonical 2 fps cache, with
-hashes matching LingBot sampling. Missing images raise an error listing paths;
-there is no hardcoded SSH host or timestamp approximation. Context and reference
-frames also retain their original hashes. A search proposal only enters a scene
-after positive clean-image review. Failed recovery remains explicit; counting's
-completed no-evidence path reports low confidence rather than treating a question
-as proof that an instance exists.
+The workflow requires exact cached frames matching LingBot sampling. Context and
+reference frames retain their original hashes. Missing cached images raise an error;
+there is no hardcoded SSH host or timestamp approximation. Full-video recovery code
+is retained for provenance but disabled. Only already confirmed evidence is admitted;
+missing categories are reported as insufficient evidence, including counting tasks.
 
-Workflow outputs include `run-config.json`, `scenes/`, `semantic-recovery/`,
+Workflow outputs include `run-config.json`, `scenes/`, `semantic-no-retrieval/`,
 `references/`, `contexts/`, `prepared/`, and `questions/<id>/`. Each question retains
 input manifests, prompts, model request/usage receipts, generated scripts, validation,
 renders, view selections and QA. Existing successful calls are resumed. Potentially

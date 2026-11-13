@@ -152,5 +152,6 @@
     "bvb_v10_2/coverage_check.py": "1c9f260231d67c4135645910088e435e96d444b3f2a69f6b48bada88f45f36cb",
     "bvb_v10_2/empty_reference_blend.py": "9d9633625d14f091ba9fd3b426ab3dae18a22b5d2170a5e101dcf3d092f1014d"
   },
-  "notes": "Release adapters use portable paths and standalone entry points. Historical experiment outputs are not included."
+  "notes": "Release adapters use portable paths and standalone entry points. Historical experiment outputs are not included.",
+  "policy_update": "2026-11-13: user disabled all full-video fallback retrieval; positive-only admission and explicit insufficient evidence."
 }
