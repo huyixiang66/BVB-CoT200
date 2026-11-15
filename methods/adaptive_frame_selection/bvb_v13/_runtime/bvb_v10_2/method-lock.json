@@ -1,0 +1,19 @@
+{
+  "version": "10.2.0",
+  "base_commit": "5e2355e157f6e349a9baa0677319232247074ee8",
+  "files": {
+    "bvb_v10_2/README.md": "ffbdbbf98dd064ec667d5f7db39098d0104ccf093e057a16b3fdeb3982fb8807",
+    "bvb_v10_2/__init__.py": "d4ddb50916b74fc44ecf298f495567330bec4bbfe973147e156a104a71827ca7",
+    "bvb_v10_2/__main__.py": "0f5d13c10ced75c0f6aa573b45a878c5b7474baacba3d3de161109221474f16f",
+    "bvb_v10_2/empty_reference_blend.py": "9d9633625d14f091ba9fd3b426ab3dae18a22b5d2170a5e101dcf3d092f1014d",
+    "bvb_v10_2/features.py": "13f00a351b4e760946b44228260991438f8ccb17911a4d7d23da71f9f337262c",
+    "bvb_v10_2/pipeline.py": "0d8be056a52cabc3520cb8fa76934d2fb8c7e5811d9a760c6c594de9b8fe9a9b",
+    "bvb_v10_2/pose_exporter.py": "5615354598d2c44f8904573b87f29924b7bd95c37007b56cd47977016cbfe519",
+    "bvb_v10_2/reference.py": "b7d26d5a3b495caec6d83128ea76a09dac6adcc5f72724db2a58042347b59270",
+    "bvb_v10_2/report.py": "30c1cee6b89ea2f70a286bc7e1609fcf6cc4f805e15d1caa6cb72df6520b7d48",
+    "bvb_v10_2/test_method.py": "bb7568c5009678c9fb8660c079a801450c8022bd695951fe54bdbe3323ad870f",
+    "bvb_v10_2/verify.py": "7c6d08cec92021e1d9474c1debf818bb7a707778ae25eca3cb16fa3aa489ec92",
+    "bvb_v10_2/workflow.py": "436c2bce2bcd1bd25d571eccb49de7980b1d128aed7af151063c457ac19b5cb9",
+    "requirements-v10_2.txt": "223c2b26e175f32dcb8d742470950854b85038c9e89caab300968d1f8cdf4be0"
+  }
+}

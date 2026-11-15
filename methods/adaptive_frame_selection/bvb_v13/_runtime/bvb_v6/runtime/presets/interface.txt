@@ -1,0 +1,50 @@
+Reusable library /workspace/presets/preset_runtime.py is installed. It contains
+generic setup, numeric material palette, primitive helpers, camera keyframing,
+default lighting, render configuration and saving. It contains NO room layout,
+object instances, object counts, or camera trajectory for this video.
+
+Begin /workspace/scratch/build.py with:
+import sys
+sys.path.insert(0, '/workspace/presets')
+from preset_runtime import *
+
+Import resets the scene and sets 1 unit = 1 meter. Exports bpy, math, Vector,
+pi, sin, cos, atan2, sqrt, scene and the functions below. Rotations are XYZ Euler
+RADIANS. All positions/sizes are in meters. Helper functions return bpy objects.
+
+group(name): sets the active Collection for subsequent primitives. Use one named
+collection per semantic object or coherent architectural assembly.
+M: material dict with keys white, plaster, tile, grout, wood, lightwood, darkwood,
+black, gray, lightgray, metal, glass, mirror, fabric, leather, cream, red, green,
+blue, yellow, orange, brown. A mat argument accepts a palette key or Material.
+material(name, color_rgb, roughness=.5, metallic=0, transmission=0, emission=0)
+creates an additional numeric Principled material when needed.
+
+box(name, pos_xyz, size_xyz, mat='white', rot=(0,0,0), bevel=0, collection=None)
+sphere(name, pos_xyz, size_xyz, mat='white', rot=(0,0,0), collection=None)
+  IMPORTANT: size_xyz is FULL diameter/extent, not radius, for box and sphere.
+cylinder(name, pos_xyz, radius, depth, mat='metal', rot=(0,0,0), collection=None)
+cone(name, pos_xyz, radius1, radius2, depth, mat='white', rot=(0,0,0), collection=None)
+torus(name, pos_xyz, radius, tube, mat='metal', rot=(0,0,0), scale=(1,1,1), collection=None)
+  radius is centerline major radius; tube is minor radius. Default cylinder,
+  cone and torus axis is Z. An explicit collection overrides active group.
+rod(name, a_xyz, b_xyz, radius=.015, mat='metal', collection=None)
+polyline(name, points_xyz, radius=.015, mat='metal', collection=None)
+  polyline builds an assembly of cylinders, not an arbitrary mesh.
+
+camera_path(shots, lens=24, duration=90, fps=24)
+  shots = [(time_seconds, camera_position_xyz, look_at_xyz), ...], times unique
+  and increasing. Generates camera, Euler unwrap, LINEAR animation and timeline.
+  Infer the trajectory from the images; the library supplies NO trajectory.
+area_light(name, pos_xyz, target_xyz, power=300, size=3, color=(1,1,1))
+  optional scene-specific lighting. If no lights exist, save adds generic fill.
+save(path='/workspace/output/result.blend')
+  requires scene geometry and animated camera, sets Cycles/24 samples/640x480,
+  configures world and saves. Does not render or call any model.
+
+Use these existing helpers rather than emitting their implementations. Write
+scene-specific geometry, dimensions, positions, materials and camera samples.
+Use functions/loops for repeated objects when useful; custom scene-specific
+assembly functions are allowed. Do not remove visible objects or simplify them
+to featureless boxes merely to shorten output. Preserve the original BVB rules.
+Do not modify the preset library. Use the normal bash execution/feedback loop.

@@ -1,0 +1,27 @@
+{
+  "version": "13.0.0",
+  "date": "2026-11-15",
+  "timezone": "America/New_York",
+  "unit_tests": 126,
+  "status": "passed",
+  "model_calls_during_validation": 0,
+  "accuracy_evaluation_performed": false,
+  "answer_protocol": "answer-only-v1",
+  "uncertain_output": "NEED_MORE_VIEWS",
+  "reasoning_effort": "high",
+  "temporal_dedup_integrated": true,
+  "optical_flow_dedup_integrated": false,
+  "unit_test_log": "results/bvb-v13-validation-20261115/unit-tests-size-originals.log",
+  "reconstruction_schema": "compact-scene-v2",
+  "geometry_policy": "task-essential-geometry-v1",
+  "blender_parameter_smoke": "passed",
+  "blender_smoke_receipt": "results/bvb-v13-validation-20261115/parameter-smoke/verified.json",
+  "temporal_dedup_policy": "earliest-frame-gap-gt-0.5s-v1",
+  "previous_65_offline_frames": {
+    "before": 1762,
+    "after": 1517,
+    "removed": 245
+  },
+  "counting_palette_fix": true,
+  "object_size_qa_original_images": true
+}

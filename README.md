@@ -1,3 +1,15 @@
+# BVB V13
+
+Current version: **13.0.0**, branch `v_13`.
+
+[使用说明与 V13 协议](methods/adaptive_frame_selection/bvb_v13/README.md) · [安装、验证与发布范围](V13-RELEASE.md)
+
+V13 包含紧凑场景重构、逐图按需追加视角、仅答案输出、0.5 秒原始帧去重、完整计数颜色图例，以及物体尺寸题的原图辅助。依赖随 `bvb_v13/_runtime/` 隔离打包。
+
+本分支发布方法源码、离线测试、依赖清单和说明。实验结果、生成网页、视频、图片、权重与凭据不随包发布。
+
+---
+
 # BVB V11 integration
 
 Current version: **11.0.0**, branch `v_11`. [Seven-task architecture, setup, commands and scope](methods/adaptive_frame_selection/bvb_v11/README.md).

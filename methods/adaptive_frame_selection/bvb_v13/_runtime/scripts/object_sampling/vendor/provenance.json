@@ -1,0 +1,14 @@
+{
+  "source_path": "/Users/zhangyiming/Desktop/Personal/past_research/3dvagent/thinking-in-space/lmms_eval/models/gemini_api.py",
+  "source_function": "extract_categories_of_interest",
+  "line": 37,
+  "local_repository_head": "9d2ab309f875018a6898ad847d70e255bb184e79",
+  "source_file_locally_modified": true,
+  "source_file_sha256": "eacc0dc3257ea8c235612270b0aca8e830fb19103f147eaaf1059735dbfb4d1e",
+  "function_sha256": "1c2d79357169b5ea4aeb586ea3025d211cd531a1dabae256154128191db73677",
+  "official_current_commit_checked": "51e089c3ae69b9435e9489058610f5b3964c56a8",
+  "function_absent_from_official_current_file": true,
+  "upstream_repository": "https://github.com/vision-x-nyu/thinking-in-space",
+  "license": "Apache-2.0",
+  "adaptation": "Original function preserved. Adapter normalizes template whitespace, beginning by/at and until past navigation variants, and splits navigation start/facing roles; only public question/type/options provided."
+}

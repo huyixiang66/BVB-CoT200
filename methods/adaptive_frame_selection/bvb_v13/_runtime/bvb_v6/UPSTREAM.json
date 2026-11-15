@@ -1,0 +1,167 @@
+{
+  "version": "6.0.0",
+  "repository": "https://github.com/huyixiang66/BVB-CoT200",
+  "branch": "pose-clustering-counting",
+  "commit": "9a9c0a0b5e9342b2ca7d82cfa747d884d48dd232",
+  "publication": "methods-only",
+  "adaptations": [
+    "Object ROI reliability clustering with configurable one-pair support",
+    "Clean semantic review and category coverage comparison",
+    "Explicit input paths and portable gallery generation",
+    "Minimal asset JSON and shared-pose reconstruction; no generated artifacts"
+  ],
+  "files": [
+    {
+      "path": "README.md",
+      "sha256": "733900ec8a1561020bea81938c6178446c88df41dc3a58b5bc918cfdb3ad765c"
+    },
+    {
+      "path": "__init__.py",
+      "sha256": "00c184867a2a1cb503fd1a3c9871b6923142605c3bc12ffac4309480096fc0ff"
+    },
+    {
+      "path": "__main__.py",
+      "sha256": "1e57e8c4c3aada90e5822e0260c69b0281b714d051c968d1a2e72026c053ecf6"
+    },
+    {
+      "path": "build.py",
+      "sha256": "85edddcf8f56e891ad14362ae60fcd1da44addb7f61397ef491a5969d73d1a6d"
+    },
+    {
+      "path": "cluster/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "cluster/group_peak_regions.py",
+      "sha256": "22984234a066a1bde90f2ca31f47d43c8d18aa6cc1750415f422df09c37bdf97"
+    },
+    {
+      "path": "cluster/group_regions.py",
+      "sha256": "c7d586ed53dd9c5cbd323f73a9b0d3948ba741ebceb6a48b537bb4b43250a1aa"
+    },
+    {
+      "path": "coverage.py",
+      "sha256": "780636a216f12d38b08b9c07280e0dca38d2386cf84a03a56c0125f25d231cb8"
+    },
+    {
+      "path": "detector/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "detector/analyze_video.py",
+      "sha256": "6bd9d42616d19deaf36968d8bb3c22c5297fd086b7346b77013b0b41eb27ca6c"
+    },
+    {
+      "path": "detector/detect_cached_frames.py",
+      "sha256": "f30738c7b8d060681a4e35f378f36546e9efd762b48eb21429ab6a912225ab1e"
+    },
+    {
+      "path": "detector/mm_grounding_compat.py",
+      "sha256": "3889b2088d0f7604432790236371d1dc00c5cf0833bc9e5d479b32fc2b7473ca"
+    },
+    {
+      "path": "detector/pilot_detect.py",
+      "sha256": "d4ef8e233e36c59281ea820ff7a10c7722c6817f9c4651e44748b9be3b35a6be"
+    },
+    {
+      "path": "object_clustering.py",
+      "sha256": "3c4034523c58028e5307b5e11918a063d3ab5b76748c1927e94fc740c0cb4637"
+    },
+    {
+      "path": "preset/geometry-appearance-075.json",
+      "sha256": "2a71d59b918fde6d80876233dfc82e2be7ac3c0ae7ff64bca3ce54fd4fc832db"
+    },
+    {
+      "path": "reconstruction.py",
+      "sha256": "a19db38e4665db710d004bd25be6de92c943c866fbeba168e770aaa0c129f68e"
+    },
+    {
+      "path": "requirements-gpu.txt",
+      "sha256": "1f7c86369071f919e2b580905c7a013faf12c8221b79d440d6b877bb53470d29"
+    },
+    {
+      "path": "requirements.txt",
+      "sha256": "3333b092f1c9608edca9221df911fcb0757e9db7c0302ddacfb79a675f269f6f"
+    },
+    {
+      "path": "runtime/LICENSE.bvb",
+      "sha256": "a687d05ac43544f57bf60729b9b44adaad5f7009299b9f8730883d3776b9d54b"
+    },
+    {
+      "path": "runtime/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "runtime/assets/asset_runtime.py",
+      "sha256": "1a383e4962b50cb24124e2814afb529c51287108285190288b23ba071651ad59"
+    },
+    {
+      "path": "runtime/assets/interface.txt",
+      "sha256": "292da645d00a86d72fc5fda1bf45c37adcbede3ef15db4f2c30e418a86ad7e39"
+    },
+    {
+      "path": "runtime/assets/local_context_scene.py",
+      "sha256": "91bdcc43d2a08ebfea394f9d1d41e5cb7a66e912480931581d05d2b21f4b0176"
+    },
+    {
+      "path": "runtime/assets/question_scene.py",
+      "sha256": "0807d492efc28d608a2e2bdaa2238d6927da3c56059561286d49f191b2a78bd2"
+    },
+    {
+      "path": "runtime/assets/schema.py",
+      "sha256": "7938c606c4fe555a05cebcdc5839a53edf1c48f12d8468f14a4a7105a8c89c41"
+    },
+    {
+      "path": "runtime/compact_pose_input.py",
+      "sha256": "890a3e17f460afafd94a2a0ffdcbe38b67ebac55045a4ca6b6a563d19d299e9e"
+    },
+    {
+      "path": "runtime/merge_cluster_pose_scenes.py",
+      "sha256": "43268194b2066802d4a8ea95f4b5c943bb711862d637051c9541bd38620cd576"
+    },
+    {
+      "path": "runtime/presets/interface.txt",
+      "sha256": "7ccbe70ef13a34231a325336fbab89e7320714b2989e4a78e6f71a19c0f1647e"
+    },
+    {
+      "path": "runtime/presets/preset_runtime.py",
+      "sha256": "d81bd89736ad37e735fdaf8158f29550588a877107e5260c5dc3365baa837c81"
+    },
+    {
+      "path": "runtime/render_fps_ablation.py",
+      "sha256": "d85393a9675d8072d83b9e459c243d053ff1aec845d1b13e51784ae598d02829"
+    },
+    {
+      "path": "runtime/render_question_highlight.py",
+      "sha256": "73aef9fbc35cb39fcac086acf7363a6d75c770cf666da06ff43f7b0943294d7b"
+    },
+    {
+      "path": "runtime/verify_question_scene.py",
+      "sha256": "91f27b63032683b86d84676eaa27bf2d007a15f92b24bfc2383b9b9c97e3082d"
+    },
+    {
+      "path": "selection.py",
+      "sha256": "370e5e693d8679b4884a6d3c0f00511057d14af1e8016589848681558ecd6c65"
+    },
+    {
+      "path": "semantic_review.py",
+      "sha256": "6e31159f2c66ce958580e1b027fa2e6c0b6435c402bcb1030902ad46eb29ad87"
+    },
+    {
+      "path": "test_coverage.py",
+      "sha256": "cd3f5aa03fdd89796fa5e092fda0566ed91c14a591d468339498251be4611a9d"
+    },
+    {
+      "path": "test_object_clustering.py",
+      "sha256": "5bc7aa13786d528f32d841b61f4aeda694f047e78fa35b712003513e19f9d749"
+    },
+    {
+      "path": "test_pipeline.py",
+      "sha256": "ab2c3da2859de763d40c0935641ddb42fbc6628a2f66b4d20fd9aa56ce3bd77a"
+    },
+    {
+      "path": "test_semantic_review.py",
+      "sha256": "c73fbfe066158ec9a7acaf2463b56e8a04a6a3d232770dc8523764059ec9c31f"
+    }
+  ]
+}

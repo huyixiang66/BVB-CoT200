@@ -1,0 +1,15 @@
+{
+  "date": "2026-11-14",
+  "source": "/Users/zhangyiming/Desktop/scene_compiler/bvb/exports/BVB-CoT200-v_12-20261113/methods/adaptive_frame_selection",
+  "version": "12.0.0",
+  "includes_fixed_view_selection": true,
+  "source_preserved": true,
+  "packaging_changes": [
+    "__init__.py",
+    "README.md",
+    "verify.py",
+    "method-lock.json"
+  ],
+  "source_dependency": "none",
+  "internal_runtime_link": "_runtime/bvb_v13 -> .."
+}

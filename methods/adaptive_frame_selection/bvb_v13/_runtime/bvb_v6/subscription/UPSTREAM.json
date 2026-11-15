@@ -1,0 +1,8 @@
+{
+  "repository": "https://github.com/huyixiang66/BVB-CoT200",
+  "branch": "methods/subscription-fork-qa",
+  "commit": "500eace5169490b572c60217d553ee4ff8ccc08c",
+  "adaptations": [
+    "relative import for package use"
+  ]
+}

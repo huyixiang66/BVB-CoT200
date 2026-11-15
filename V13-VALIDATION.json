@@ -1,0 +1,26 @@
+{
+  "version": "13.0.0",
+  "date": "2026-11-15",
+  "timezone": "America/New_York",
+  "status": "passed",
+  "validated_from": "git index exported to isolated temporary directory",
+  "unit_tests": 126,
+  "syntax_checked_python_files": 243,
+  "source_fingerprint_files": 236,
+  "package_matches_local_source": true,
+  "package_files": 290,
+  "relative_runtime_symlink_preserved": true,
+  "cli_checks": [
+    "verify",
+    "--version",
+    "--help"
+  ],
+  "model_calls": 0,
+  "accuracy_evaluation_performed": false,
+  "credential_pattern_scan": "no findings",
+  "method_lock_sha256": "011526f8a22e879ade620232cbd3d38da08dcd4b9755edf960a3025d2f2a513c",
+  "notes": [
+    "Unit tests emitted existing ResourceWarning messages about unclosed image handles; all tests passed.",
+    "Existing trailing whitespace in the vendored original question parser is retained to preserve provenance and source fingerprints."
+  ]
+}
